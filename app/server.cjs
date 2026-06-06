@@ -126,6 +126,15 @@ function sendFile(res, filePath) {
   fs.createReadStream(filePath).pipe(res)
 }
 
+function sendZipFile(res, filePath, fileName) {
+  res.writeHead(200, {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="${fileName}"`,
+    'Cache-Control': 'no-store',
+  })
+  fs.createReadStream(filePath).pipe(res)
+}
+
 function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -135,6 +144,27 @@ function sendJson(res, status, payload) {
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   })
   res.end(JSON.stringify(payload))
+}
+
+function safeFileName(value, fallback = 'file') {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .slice(0, 80)
+  return normalized || fallback
+}
+
+function filePathFromUrl(fileUrl) {
+  if (!fileUrl) return null
+  const pathname = new URL(fileUrl, 'http://local').pathname
+  if (pathname.startsWith('/uploads/')) {
+    return path.join(UPLOAD_DIR, path.basename(pathname))
+  }
+  if (pathname.startsWith('/sample/')) {
+    return path.join(ROOT, 'public', 'sample', path.basename(pathname))
+  }
+  return null
 }
 
 function readJson(req) {
@@ -686,6 +716,59 @@ async function route(req, res) {
       .filter((attachment) => attachment.imageItemId === attachmentsMatch[1])
       .sort((left, right) => left.sortOrder - right.sortOrder)
     sendJson(res, 200, { attachments })
+    return
+  }
+
+  const packageDownloadMatch = url.pathname.match(/^\/api\/image-items\/([^/]+)\/download-package$/)
+  if (req.method === 'GET' && packageDownloadMatch) {
+    const item = db.imageItems.find((candidate) => candidate.id === packageDownloadMatch[1])
+    if (!item) {
+      sendJson(res, 404, { error: '主图不存在' })
+      return
+    }
+
+    const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'image-package-'))
+    const sourceDir = path.join(tempRoot, safeFileName(item.code, 'image-item'))
+    const suiteDir = path.join(sourceDir, 'suite')
+    const zipFile = path.join(tempRoot, `${safeFileName(item.code, 'image-item')}.zip`)
+
+    try {
+      await fsp.mkdir(suiteDir, { recursive: true })
+      let fileCount = 0
+      const mainPath = filePathFromUrl(item.imageUrl)
+      if (mainPath && fs.existsSync(mainPath)) {
+        const ext = path.extname(mainPath) || '.jpg'
+        await fsp.copyFile(mainPath, path.join(sourceDir, `main-${safeFileName(item.code)}${ext}`))
+        fileCount += 1
+      }
+
+      const attachments = db.attachments
+        .filter((attachment) => attachment.imageItemId === item.id)
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+      for (const attachment of attachments) {
+        const attachmentPath = filePathFromUrl(attachment.fileUrl)
+        if (!attachmentPath || !fs.existsSync(attachmentPath)) continue
+        const ext = path.extname(attachmentPath) || path.extname(attachment.fileName) || '.jpg'
+        const name = `suite-${String(attachment.sortOrder).padStart(2, '0')}-${safeFileName(attachment.fileName, 'suite')}${ext}`
+        await fsp.copyFile(attachmentPath, path.join(suiteDir, name))
+        fileCount += 1
+      }
+
+      if (fileCount === 0) {
+        await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+        sendJson(res, 404, { error: '没有可打包的图片文件' })
+        return
+      }
+
+      await execFileAsync('zip', ['-qr', zipFile, path.basename(sourceDir)], { cwd: tempRoot })
+      res.on('finish', () => {
+        fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+      })
+      sendZipFile(res, zipFile, `${safeFileName(item.code, 'image-package')}.zip`)
+    } catch (error) {
+      await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+      throw error
+    }
     return
   }
 

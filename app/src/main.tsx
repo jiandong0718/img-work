@@ -10,6 +10,7 @@ import {
   fetchImageAttachments,
   fetchImageItems,
   fetchImageLogs,
+  imagePackageDownloadUrl,
   login,
   previewExcelImport,
   updateImageItem,
@@ -1311,9 +1312,14 @@ function DetailView({
             <strong>{attachments.length}/10</strong>
           </div>
         </div>
-        <button className="btn download-main" onClick={() => downloadFile(item.imageUrl)}>
-          下载主图
-        </button>
+        <div className="download-actions">
+          <button className="btn" onClick={() => downloadFile(item.imageUrl)}>
+            下载主图
+          </button>
+          <button className="btn primary" onClick={() => downloadFile(imagePackageDownloadUrl(item.id))}>
+            打包下载
+          </button>
+        </div>
       </div>
       <div className="panel">
         <div className="panel-head">

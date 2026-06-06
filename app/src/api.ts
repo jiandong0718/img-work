@@ -91,3 +91,7 @@ export function deleteImageAttachment(id: string, attachmentId: string, operator
     body: JSON.stringify({ operatorName }),
   })
 }
+
+export function imagePackageDownloadUrl(id: string) {
+  return `${API_BASE}/image-items/${id}/download-package`
+}
