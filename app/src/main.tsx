@@ -89,6 +89,20 @@ const initialItems: ImageItem[] = [
   },
 ]
 
+function BrandMark() {
+  return (
+    <div className="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" role="img">
+        <path className="logo-bag" d="M15 20.5h18a5 5 0 0 1 4.9 4.1l1.9 10.7A5.2 5.2 0 0 1 34.7 41H13.3a5.2 5.2 0 0 1-5.1-5.7l1.9-10.7a5 5 0 0 1 4.9-4.1Z" />
+        <path className="logo-handle" d="M17.2 20.5v-2.4a6.8 6.8 0 0 1 13.6 0v2.4" />
+        <path className="logo-line" d="M16.5 28h15" />
+        <path className="logo-line" d="M16.5 33h11" />
+        <circle className="logo-node" cx="32.5" cy="33" r="2.8" />
+      </svg>
+    </div>
+  )
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [screen, setScreen] = useState<Screen>('archive')
@@ -266,7 +280,7 @@ function LoginScreen({ onLogin }: { onLogin: (account: string, password: string)
     <section className="login-page">
       <div className="login-panel">
         <div className="brand">
-          <div className="brand-mark">归</div>
+          <BrandMark />
           <div>
             <strong>图片归档工作台</strong>
             <span>登录后自动记录操作人</span>
@@ -337,7 +351,7 @@ function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">归</div>
+        <BrandMark />
         <div>
           <strong>图片归档工作台</strong>
           <span>Excel 入库 / 出图 / 生产跟进</span>

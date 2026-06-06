@@ -367,11 +367,39 @@ input[type='checkbox'] {
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  background: var(--primary);
-  color: #fff;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.2), transparent 42%),
+    linear-gradient(135deg, #176b87, #197a52);
+  box-shadow: 0 10px 22px rgba(23, 107, 135, 0.22);
   display: grid;
   place-items: center;
-  font-weight: 900;
+  flex: 0 0 auto;
+}
+
+.brand-mark svg {
+  width: 32px;
+  height: 32px;
+}
+
+.logo-bag {
+  fill: rgba(255, 255, 255, 0.16);
+  stroke: #fff;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+
+.logo-handle,
+.logo-line {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.logo-node {
+  fill: #f4c95d;
+  stroke: #fff;
+  stroke-width: 1.6;
 }
 
 .brand span,
