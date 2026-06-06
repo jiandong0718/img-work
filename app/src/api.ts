@@ -1,4 +1,4 @@
-import type { ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageType, ManualDraft, OperationLog, User } from './types'
+import type { ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageType, ManualDraft, OperationLog, OperationLogWithItem, User } from './types'
 
 const API_BASE = '/api'
 
@@ -72,6 +72,10 @@ export function updateImageItem(id: string, patch: Partial<ImageItem>, action: s
 
 export function fetchImageLogs(id: string) {
   return request<{ logs: OperationLog[] }>(`/image-items/${id}/logs`)
+}
+
+export function fetchOperationLogs() {
+  return request<{ logs: OperationLogWithItem[] }>('/operation-logs')
 }
 
 export function fetchImageAttachments(id: string) {

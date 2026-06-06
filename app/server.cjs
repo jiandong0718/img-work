@@ -955,6 +955,24 @@ async function route(req, res) {
     return
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/operation-logs') {
+    const itemsById = new Map(db.imageItems.map((item) => [item.id, item]))
+    const logs = db.operationLogs.map((log) => {
+      const item = itemsById.get(log.imageItemId)
+      return {
+        ...log,
+        itemCode: item?.code || '未知编号',
+        itemName: item?.name || '主图不存在',
+        itemType: item?.type,
+        itemStatus: item?.status,
+        imageUrl: item?.imageUrl,
+        archiveDate: item?.archiveDate,
+      }
+    })
+    sendJson(res, 200, { logs })
+    return
+  }
+
   sendJson(res, 404, { error: '接口不存在' })
 }
 

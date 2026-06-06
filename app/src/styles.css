@@ -1047,6 +1047,14 @@ nav button.active {
   overflow: auto;
 }
 
+.empty-table {
+  min-height: 90px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 table {
   width: 100%;
   min-width: 900px;

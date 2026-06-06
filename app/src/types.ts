@@ -1,4 +1,4 @@
-export type Screen = 'archive' | 'center' | 'manual' | 'excel' | 'detail' | 'dashboard'
+export type Screen = 'archive' | 'center' | 'manual' | 'excel' | 'detail' | 'dashboard' | 'logs'
 
 export type ImageType = 'hand_bag' | 'shoulder_bag'
 
@@ -52,6 +52,15 @@ export interface OperationLog {
   action: string
   operatorName: string
   createdAt: string
+}
+
+export interface OperationLogWithItem extends OperationLog {
+  itemCode: string
+  itemName: string
+  itemType?: ImageType
+  itemStatus?: ImageStatus
+  imageUrl?: string
+  archiveDate?: string
 }
 
 export interface ImageAttachment {

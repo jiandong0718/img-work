@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
-import type { ExcelImportPreview, ImageAttachment, ImageItem, ImageStatus, ImageType, ManualDraft, OperationLog, Screen, User } from './types'
+import type { ExcelImportPreview, ImageAttachment, ImageItem, ImageStatus, ImageType, ManualDraft, OperationLog, OperationLogWithItem, Screen, User } from './types'
 import {
   confirmExcelImport,
   confirmManualUpload,
@@ -10,6 +10,7 @@ import {
   fetchImageAttachments,
   fetchImageItems,
   fetchImageLogs,
+  fetchOperationLogs,
   imagePackageDownloadUrl,
   login,
   previewExcelImport,
@@ -215,6 +216,14 @@ function App() {
             onPreview={openPreview}
           />
         )}
+        {screen === 'logs' && (
+          <OperationLogsView
+            onOpen={(id) => {
+              setSelectedId(id)
+              setScreen('detail')
+            }}
+          />
+        )}
         {screen === 'detail' && selected && (
           <DetailView
             item={selected}
@@ -329,6 +338,9 @@ function Sidebar({
         <button className={active === 'dashboard' ? 'active' : ''} onClick={() => onNavigate('dashboard')}>
           状态看板
         </button>
+        <button className={active === 'logs' ? 'active' : ''} onClick={() => onNavigate('logs')}>
+          操作日志
+        </button>
       </nav>
       <div className="user-card">
         <strong>{user.displayName}</strong>
@@ -347,6 +359,7 @@ function Header({ screen }: { screen: Screen }) {
     center: ['图片中心', '查看所有已归档图片，并按类型、状态、日期和编号筛选管理。'],
     detail: ['主图详情', '维护当前主图、生产数量、状态、套图和操作记录。'],
     dashboard: ['状态看板', '按状态、类型、来源和生产进度查看当前图片任务。'],
+    logs: ['操作日志', '按主图、动作、操作人和日期追溯所有变更记录。'],
   }
   return (
     <header className="topbar">
@@ -1176,6 +1189,136 @@ function ImageCenter({
           </button>
         </div>
       </div>
+    </section>
+  )
+}
+
+function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
+  const [logs, setLogs] = useState<OperationLogWithItem[]>([])
+  const [query, setQuery] = useState('')
+  const [operator, setOperator] = useState('')
+  const [status, setStatus] = useState<'all' | ImageStatus>('all')
+  const [date, setDate] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setLoading(true)
+    fetchOperationLogs()
+      .then(({ logs }) => {
+        setLogs(logs)
+        setError('')
+      })
+      .catch((error) => setError(error.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const operators = useMemo(() => Array.from(new Set(logs.map((log) => log.operatorName).filter(Boolean))), [logs])
+  const filtered = useMemo(
+    () =>
+      logs.filter((log) => {
+        const matchesQuery =
+          !query ||
+          log.itemCode.includes(query) ||
+          log.itemName.includes(query) ||
+          log.action.includes(query)
+        const matchesOperator = !operator || log.operatorName === operator
+        const matchesStatus = status === 'all' || log.itemStatus === status
+        const matchesDate = !date || log.createdAt.startsWith(date)
+        return matchesQuery && matchesOperator && matchesStatus && matchesDate
+      }),
+    [date, logs, operator, query, status],
+  )
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>操作日志</h2>
+          <p>共 {logs.length} 条记录，当前筛选 {filtered.length} 条。</p>
+        </div>
+      </div>
+      <div className="filters">
+        <label>
+          搜索编号/名称/动作
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="A-2048 / 上传套图" />
+        </label>
+        <label>
+          操作人
+          <select value={operator} onChange={(event) => setOperator(event.target.value)}>
+            <option value="">全部操作人</option>
+            {operators.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          当前状态
+          <select value={status} onChange={(event) => setStatus(event.target.value as 'all' | ImageStatus)}>
+            <option value="all">全部状态</option>
+            {Object.entries(statusLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          操作日期
+          <input value={date} onChange={(event) => setDate(event.target.value)} placeholder="2026-06-06" />
+        </label>
+      </div>
+      {loading && <div className="empty-archive">日志加载中...</div>}
+      {error && <div className="save-state dirty">{error}</div>}
+      {!loading && !error && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>主图</th>
+                <th>动作</th>
+                <th>状态</th>
+                <th>操作人</th>
+                <th>时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((log) => (
+                <tr key={log.id}>
+                  <td>
+                    <div className="item-cell">
+                      {log.imageUrl && <img src={log.imageUrl} alt={log.itemName} />}
+                      <div>
+                        <strong>{log.itemCode}</strong>
+                        <span>{log.itemName}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{log.action}</td>
+                  <td>{log.itemStatus ? <span className="tag info">{statusLabels[log.itemStatus]}</span> : '-'}</td>
+                  <td>{log.operatorName}</td>
+                  <td>{log.createdAt}</td>
+                  <td>
+                    <button className="link-btn" onClick={() => onOpen(log.imageItemId)}>
+                      详情
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="empty-table">暂无匹配日志</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   )
 }
