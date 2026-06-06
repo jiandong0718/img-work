@@ -1,0 +1,2049 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>图片归档工作台 UI 原型</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --surface-soft: #f0f4f6;
+        --line: #d8dee5;
+        --text: #172026;
+        --muted: #64717d;
+        --primary: #176b87;
+        --primary-soft: #e5f3f7;
+        --green: #197a52;
+        --green-soft: #e5f6ee;
+        --amber: #9a5a00;
+        --amber-soft: #fff1d7;
+        --red: #b3261e;
+        --red-soft: #fde7e4;
+        --blue: #255db2;
+        --blue-soft: #e8f0ff;
+        --ink-soft: #edf0f3;
+        --shadow: 0 14px 30px rgba(23, 32, 38, 0.08);
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background: var(--bg);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .login-screen {
+        min-height: 100dvh;
+        display: grid;
+        grid-template-columns: minmax(320px, 440px) minmax(0, 1fr);
+        background: var(--bg);
+      }
+
+      .login-panel {
+        background: var(--surface);
+        border-right: 1px solid var(--line);
+        padding: 48px 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .login-panel h1 {
+        margin: 24px 0 10px;
+        font-size: 28px;
+      }
+
+      .login-panel p {
+        margin: 0 0 26px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .login-form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .login-visual {
+        padding: 48px;
+        display: grid;
+        place-items: center;
+      }
+
+      .login-preview {
+        width: min(640px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: var(--shadow);
+        padding: 18px;
+      }
+
+      .preview-bars {
+        display: grid;
+        gap: 10px;
+      }
+
+      .preview-bar {
+        min-height: 52px;
+        border-radius: 8px;
+        background: var(--surface-soft);
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr) 96px;
+        gap: 12px;
+        align-items: center;
+        padding: 10px;
+      }
+
+      .preview-dot {
+        width: 40px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--primary-soft);
+      }
+
+      .app {
+        min-height: 100dvh;
+        display: grid;
+        grid-template-columns: 232px minmax(0, 1fr);
+      }
+
+      body.is-login .app {
+        display: none;
+      }
+
+      body:not(.is-login) .login-screen {
+        display: none;
+      }
+
+      .sidebar {
+        background: #ffffff;
+        border-right: 1px solid var(--line);
+        padding: 20px 16px;
+        position: sticky;
+        top: 0;
+        height: 100dvh;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+      }
+
+      .brand-title {
+        font-size: 17px;
+        font-weight: 700;
+      }
+
+      .brand-sub {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+
+      .nav {
+        display: grid;
+        gap: 6px;
+      }
+
+      .quick-import {
+        width: 100%;
+        min-height: 46px;
+        margin-bottom: 20px;
+        border: 1px solid var(--primary);
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .quick-import:hover {
+        background: #12586f;
+      }
+
+      .nav-section {
+        margin-bottom: 18px;
+      }
+
+      .nav-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        padding: 0 12px 8px;
+      }
+
+      .nav button {
+        width: 100%;
+        min-height: 44px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        cursor: pointer;
+      }
+
+      .nav button.is-muted {
+        color: #8a969f;
+        cursor: default;
+      }
+
+      .nav button[aria-selected="true"] {
+        color: var(--primary);
+        background: var(--primary-soft);
+        font-weight: 700;
+      }
+
+      .nav-icon {
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        color: currentColor;
+      }
+
+      .sidebar-footer {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 18px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-soft);
+      }
+
+      .sidebar-footer strong {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+
+      .sidebar-footer span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .user-card {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-soft);
+        padding: 12px;
+      }
+
+      .user-card strong {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .user-card span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+
+      .user-card button {
+        width: 100%;
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      .main {
+        min-width: 0;
+        padding: 22px 24px 36px;
+      }
+
+      .topbar {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.25;
+      }
+
+      .title p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .top-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .btn {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+
+      .btn.primary {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+
+      .btn.danger {
+        color: var(--red);
+        background: var(--red-soft);
+        border-color: #f5c6c1;
+      }
+
+      .screen {
+        display: none;
+      }
+
+      .screen.active {
+        display: block;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .side-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metric {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric-value {
+        font-size: 26px;
+        font-weight: 800;
+        margin-top: 8px;
+      }
+
+      .metric-note {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .workspace-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 14px;
+      }
+
+      .import-workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 14px;
+      }
+
+      .scenario-strip {
+        min-height: 48px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 8px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .entry-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .entry-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        box-shadow: var(--shadow);
+      }
+
+      .entry-card strong {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 6px;
+      }
+
+      .entry-card span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .entry-card.primary-entry {
+        border-color: #9cc6d2;
+        background: #f7fbfc;
+      }
+
+      .scenario-strip strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .scenario-strip span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .stepper {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .step {
+        min-height: 64px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 10px;
+      }
+
+      .step strong {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .step span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .step.active {
+        border-color: #9cc6d2;
+        background: var(--primary-soft);
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        min-width: 0;
+      }
+
+      .panel-head {
+        min-height: 58px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .panel-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .panel-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .panel-body {
+        padding: 16px;
+        min-width: 0;
+      }
+
+      .upload-zone {
+        border: 1px dashed #9fb2bd;
+        border-radius: 8px;
+        min-height: 178px;
+        background: #f7fbfc;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 22px;
+      }
+
+      .upload-zone strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .upload-zone span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .upload-card {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 14px;
+        align-items: stretch;
+        min-width: 0;
+      }
+
+      .file-box {
+        border: 1px dashed #9fb2bd;
+        border-radius: 8px;
+        background: #f7fbfc;
+        display: grid;
+        place-items: center;
+        min-height: 172px;
+        text-align: center;
+        padding: 16px;
+      }
+
+      .file-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      .manual-grid {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .drop-gallery {
+        border: 1px dashed #9fb2bd;
+        border-radius: 8px;
+        background: #f7fbfc;
+        min-height: 236px;
+        padding: 18px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+
+      .upload-mode-tabs {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .upload-mode-tabs button {
+        min-height: 38px;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: #fff;
+        padding: 0 12px;
+        cursor: pointer;
+      }
+
+      .upload-mode-tabs button:last-child {
+        border-right: 0;
+      }
+
+      .upload-mode-tabs button[aria-selected="true"] {
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 800;
+      }
+
+      .manual-preview {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .manual-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .manual-card img,
+      .manual-empty {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+      }
+
+      .manual-empty {
+        background: var(--surface-soft);
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .manual-card-body {
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .manual-card-body input,
+      .manual-card-body select {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 8px;
+        background: #fff;
+      }
+
+      .file-box strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .file-box span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .mapping-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .mapping-row {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: #fff;
+        font-size: 13px;
+      }
+
+      .mapping-row span {
+        color: var(--muted);
+      }
+
+      .rule-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .rule-chip {
+        min-height: 30px;
+        border-radius: 999px;
+        background: var(--red-soft);
+        color: var(--red);
+        display: inline-flex;
+        align-items: center;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0 10px;
+        color: var(--text);
+      }
+
+      .import-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .import-row {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr) 96px;
+        gap: 12px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .decision-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .decision-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+        background: #fff;
+      }
+
+      .decision-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .decision-item strong {
+        font-size: 13px;
+      }
+
+      .decision-item span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .thumb {
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 1px solid var(--line);
+        background: var(--ink-soft);
+      }
+
+      .row-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .row-sub {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        width: fit-content;
+      }
+
+      .tag.green {
+        color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .tag.amber {
+        color: var(--amber);
+        background: var(--amber-soft);
+      }
+
+      .tag.red {
+        color: var(--red);
+        background: var(--red-soft);
+      }
+
+      .tag.blue {
+        color: var(--blue);
+        background: var(--blue-soft);
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: 1.6fr repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+        min-width: 0;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      table {
+        width: 100%;
+        min-width: 920px;
+        border-collapse: collapse;
+      }
+
+      .excel-table {
+        min-width: 760px;
+      }
+
+      .excel-table td {
+        background: #fff;
+      }
+
+      .excel-table .skip-row td {
+        background: #fff8f7;
+      }
+
+      .excel-table .duplicate-row td {
+        background: #fffaf0;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 12px 10px;
+        text-align: left;
+        vertical-align: middle;
+        font-size: 13px;
+      }
+
+      th {
+        color: var(--muted);
+        background: #fbfcfd;
+        font-weight: 700;
+      }
+
+      .item-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 230px;
+      }
+
+      .mini-thumb {
+        width: 52px;
+        height: 52px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 1px solid var(--line);
+      }
+
+      .link-button {
+        border: 0;
+        color: var(--primary);
+        background: transparent;
+        padding: 4px 0;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .detail-layout {
+        display: grid;
+        grid-template-columns: 420px minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .main-preview {
+        aspect-ratio: 1 / 1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--ink-soft);
+        border: 1px solid var(--line);
+      }
+
+      .main-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .detail-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .stat-box {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .stat-box span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .stat-box strong {
+        display: block;
+        font-size: 20px;
+        margin-top: 6px;
+      }
+
+      .suite-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .subsection {
+        margin: 4px 0 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .subsection-head {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .subsection-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .subsection-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .suite-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .suite-item img,
+      .suite-placeholder {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+      }
+
+      .suite-placeholder {
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        background: var(--surface-soft);
+        font-size: 12px;
+      }
+
+      .suite-caption {
+        padding: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .log-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .log-item {
+        border-left: 3px solid var(--primary);
+        padding-left: 10px;
+      }
+
+      .log-item strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .log-item span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      .kanban {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(220px, 1fr));
+        gap: 12px;
+        overflow-x: auto;
+      }
+
+      .lane {
+        min-width: 220px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .lane-head {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 800;
+      }
+
+      .lane-body {
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .task-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 10px;
+      }
+
+      .task-card img {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        margin-bottom: 8px;
+      }
+
+      .task-card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .task-card span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .mobile-hint {
+        display: none;
+      }
+
+      @media (max-width: 1080px) {
+        .import-workspace,
+        .manual-grid,
+        .detail-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .filters {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .sidebar-footer {
+          display: none;
+        }
+
+        .nav {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .workspace-grid,
+        .detail-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        .main {
+          padding: 16px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .top-actions {
+          width: 100%;
+          flex-wrap: wrap;
+        }
+
+        .btn {
+          flex: 1 1 auto;
+          justify-content: center;
+        }
+
+        .nav {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .metrics,
+        .form-grid,
+        .upload-card,
+        .stepper,
+        .entry-grid,
+        .manual-preview,
+        .filters {
+          grid-template-columns: 1fr;
+        }
+
+        .suite-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .mobile-hint {
+          display: block;
+          color: var(--muted);
+          font-size: 12px;
+          margin-bottom: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body class="is-login">
+    <section class="login-screen" aria-label="登录">
+      <div class="login-panel">
+        <div class="brand">
+          <div class="brand-mark">归</div>
+          <div>
+            <div class="brand-title">图片归档工作台</div>
+            <div class="brand-sub">账号登录后自动记录操作人</div>
+          </div>
+        </div>
+        <h1>登录工作台</h1>
+        <p>登录后可进入图片归档、图片中心和状态看板。上传、改状态、删除、下载等操作都会自动记录当前用户。</p>
+        <div class="login-form">
+          <div class="field">
+            <label for="login-account">账号</label>
+            <input id="login-account" value="zhangsan" />
+          </div>
+          <div class="field">
+            <label for="login-password">密码</label>
+            <input id="login-password" type="password" value="123456" />
+          </div>
+          <button class="btn primary" type="button" id="login-button">登录</button>
+        </div>
+      </div>
+      <div class="login-visual">
+        <div class="login-preview">
+          <div class="panel-head" style="border-bottom: 0; padding: 0 0 14px;">
+            <div>
+              <h2>今日归档概览</h2>
+              <p>登录后进入图片归档，选择 Excel 导入或手动上传。</p>
+            </div>
+            <span class="tag green">受控访问</span>
+          </div>
+          <div class="preview-bars">
+            <div class="preview-bar">
+              <div class="preview-dot"></div>
+              <strong>Excel 导入</strong>
+              <span class="tag blue">批量</span>
+            </div>
+            <div class="preview-bar">
+              <div class="preview-dot"></div>
+              <strong>手动上传</strong>
+              <span class="tag green">补录</span>
+            </div>
+            <div class="preview-bar">
+              <div class="preview-dot"></div>
+              <strong>图片中心</strong>
+              <span class="tag amber">追踪</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">归</div>
+          <div>
+            <div class="brand-title">图片归档工作台</div>
+            <div class="brand-sub">Excel 入库 / 出图 / 生产跟进</div>
+          </div>
+        </div>
+        <nav class="nav" aria-label="主导航">
+          <div class="nav-section">
+            <div class="nav-label">日常工作</div>
+            <button type="button" aria-selected="true" data-screen="archive">
+              <span class="nav-icon">≡</span>
+              图片归档
+            </button>
+            <button type="button" aria-selected="false" data-screen="center">
+              <span class="nav-icon">▦</span>
+              图片中心
+            </button>
+            <button type="button" aria-selected="false" data-screen="board">
+              <span class="nav-icon">▥</span>
+              状态看板
+            </button>
+          </div>
+          <div class="nav-section">
+            <div class="nav-label">数据维护</div>
+            <button type="button" class="is-muted" aria-selected="false">
+              <span class="nav-icon">⌕</span>
+              下载中心
+            </button>
+            <button type="button" class="is-muted" aria-selected="false">
+              <span class="nav-icon">◷</span>
+              操作日志
+            </button>
+          </div>
+          <div class="nav-section">
+            <div class="nav-label">系统设置</div>
+            <button type="button" class="is-muted" aria-selected="false">
+              <span class="nav-icon">⚙</span>
+              排除关键词
+            </button>
+          </div>
+        </nav>
+        <div class="user-card">
+          <strong>张三</strong>
+          <span>管理员 · 当前登录用户</span>
+          <button type="button" id="logout-button">退出登录</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div class="title">
+            <h1 id="page-title">图片归档</h1>
+            <p id="page-subtitle">所有主图最终进入同一个归档列表，入口分为 Excel 导入和手动上传。</p>
+          </div>
+          <div class="top-actions">
+            <button class="btn" type="button" id="secondary-action">导出列表</button>
+            <button class="btn primary" type="button" id="primary-action">批量改状态</button>
+          </div>
+        </div>
+
+        <section id="import" class="screen">
+          <div class="scenario-strip">
+            <div>
+              <strong>当前场景：把客户发来的 Excel 图片订单导入到 2026-06-06 归档</strong>
+              <span>系统会从单元格中提取嵌入图片，识别编号，并跳过删除、返单和重复编号。</span>
+            </div>
+            <span class="tag green">待确认入库</span>
+          </div>
+
+          <div class="stepper">
+            <div class="step active">
+              <strong>1. 上传 Excel</strong>
+              <span>选择归档日期，操作人取当前用户</span>
+            </div>
+            <div class="step active">
+              <strong>2. 识别字段</strong>
+              <span>图片列、编号列自动匹配</span>
+            </div>
+            <div class="step active">
+              <strong>3. 清洗数据</strong>
+              <span>删除/返单/重复编号跳过</span>
+            </div>
+            <div class="step">
+              <strong>4. 确认入库</strong>
+              <span>生成归档记录和批次报告</span>
+            </div>
+          </div>
+
+          <div class="import-workspace">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>导入工作区</h2>
+                  <p>右侧主区域模拟用户真正看到的 Excel 识别结果。</p>
+                </div>
+                <button class="btn primary" type="button">确认 128 条入库</button>
+              </div>
+              <div class="panel-body">
+                <div class="upload-card">
+                  <div class="file-box">
+                    <div>
+                      <strong>拖入或选择 Excel 文件</strong>
+                      <span>支持读取单元格内嵌 jpg/png 图片</span>
+                      <div class="file-actions">
+                        <button class="btn primary" type="button">选择 Excel 文件</button>
+                        <button class="btn" type="button">重新上传</button>
+                      </div>
+                      <span style="display: block; margin-top: 10px;">当前文件：订单图片_0606.xlsx<br />151 行数据，145 张内嵌图片</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="form-grid">
+                      <div class="field">
+                        <label for="archive-date">归档日期</label>
+                        <input id="archive-date" value="2026-06-06" />
+                      </div>
+                      <div class="field">
+                        <label for="operator">当前操作人</label>
+                        <input id="operator" value="张三（当前登录用户）" disabled />
+                      </div>
+                      <div class="field">
+                        <label for="import-type">默认图片类型</label>
+                        <select id="import-type">
+                          <option>手提包</option>
+                          <option>单肩背包</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="mapping-grid">
+                      <div class="mapping-row">
+                        <strong>图片字段</strong>
+                        <span>识别为：B 列「产品图片」</span>
+                      </div>
+                      <div class="mapping-row">
+                        <strong>编号字段</strong>
+                        <span>识别为：A 列「款号/编号」</span>
+                      </div>
+                      <div class="mapping-row">
+                        <strong>名称字段</strong>
+                        <span>识别为：C 列「名称」</span>
+                      </div>
+                      <div class="mapping-row">
+                        <strong>排除判断</strong>
+                        <span>扫描 D/E/F 列备注内容</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="subsection">
+                  <div class="subsection-head">
+                    <div>
+                      <h2>Excel 识别预览</h2>
+                      <p>绿色会入库；红色和黄色会跳过，并保留原因到导入报告。</p>
+                    </div>
+                    <button class="btn" type="button">重新识别字段</button>
+                  </div>
+                  <div class="mobile-hint">表格可横向滚动查看完整字段。</div>
+                  <div class="table-wrap">
+                    <table class="excel-table">
+                      <thead>
+                        <tr>
+                          <th>Excel 行</th>
+                          <th>主图</th>
+                          <th>识别编号</th>
+                          <th>识别名称</th>
+                          <th>图片类型</th>
+                          <th>备注命中</th>
+                          <th>处理结果</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>第 2 行</td>
+                          <td>
+                            <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_pc_1.png" alt="Excel 内嵌图片" />
+                          </td>
+                          <td>A-2048</td>
+                          <td>夏季套装主图</td>
+                          <td>手提包</td>
+                          <td>-</td>
+                          <td><span class="tag green">入库</span></td>
+                        </tr>
+                        <tr class="skip-row">
+                          <td>第 3 行</td>
+                          <td>
+                            <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_pc_2.png" alt="Excel 内嵌图片" />
+                          </td>
+                          <td>A-1902</td>
+                          <td>基础款图片</td>
+                          <td>单肩背包</td>
+                          <td>返单</td>
+                          <td><span class="tag red">跳过</span></td>
+                        </tr>
+                        <tr class="duplicate-row">
+                          <td>第 4 行</td>
+                          <td>
+                            <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_mb_1.jpg" alt="Excel 内嵌图片" />
+                          </td>
+                          <td>A-1660</td>
+                          <td>旧款补图</td>
+                          <td>手提包</td>
+                          <td>-</td>
+                          <td><span class="tag amber">重复编号</span></td>
+                        </tr>
+                        <tr>
+                          <td>第 5 行</td>
+                          <td>
+                            <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_mb_2.jpg" alt="Excel 内嵌图片" />
+                          </td>
+                          <td>A-2096</td>
+                          <td>生产确认图</td>
+                          <td>单肩背包</td>
+                          <td>-</td>
+                          <td><span class="tag green">入库</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="metrics side-metrics">
+                <div class="metric">
+                  <div class="metric-label">成功入库</div>
+                  <div class="metric-value">128</div>
+                  <div class="metric-note">生成主图记录</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">跳过</div>
+                  <div class="metric-value">23</div>
+                  <div class="metric-note">不进入归档</div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>跳过规则</h2>
+                    <p>这些字样出现时，该行完全不入库。</p>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <div class="rule-chips">
+                    <span class="rule-chip">删除</span>
+                    <span class="rule-chip">返单</span>
+                    <span class="rule-chip">不做</span>
+                    <span class="rule-chip">不要</span>
+                    <span class="rule-chip">作废</span>
+                  </div>
+                </div>
+              </div>
+              <div class="panel" style="margin-top: 14px;">
+                <div class="panel-head">
+                  <div>
+                    <h2>导入报告</h2>
+                    <p>确认入库后可下载报告。</p>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <div class="decision-list">
+                    <div class="decision-item">
+                      <div class="decision-top">
+                        <strong>14 条命中排除词</strong>
+                        <span class="tag red">跳过</span>
+                      </div>
+                      <span>包含删除、返单等字样，不创建主图记录。</span>
+                    </div>
+                    <div class="decision-item">
+                      <div class="decision-top">
+                        <strong>6 条重复编号</strong>
+                        <span class="tag amber">跳过</span>
+                      </div>
+                      <span>编号已存在，保留旧数据，新数据不覆盖。</span>
+                    </div>
+                    <div class="decision-item">
+                      <div class="decision-top">
+                        <strong>3 条异常数据</strong>
+                        <span class="tag red">待处理</span>
+                      </div>
+                      <span>缺少图片或编号，需要用户回到 Excel 修正。</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="archive" class="screen active">
+          <div class="entry-grid">
+            <div class="entry-card primary-entry">
+              <div>
+                <strong>入口 1：Excel 导入</strong>
+                <span>适合客户给一整张 Excel 表格的场景，系统自动读取内嵌图片、编号和排除字样。</span>
+              </div>
+              <button class="btn primary" type="button" data-screen-link="import">开始导入</button>
+            </div>
+            <div class="entry-card">
+              <div>
+                <strong>入口 2：手动上传</strong>
+                <span>适合没有 Excel、临时补图或少量新增的场景，支持批量上传或单张上传。</span>
+              </div>
+              <button class="btn primary" type="button" data-screen-link="manual">手动上传</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="center" class="screen">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>图片中心</h2>
+                <p>Excel 导入和手动上传后的图片统一沉淀到这里，按类型、状态、日期筛选管理。</p>
+              </div>
+              <button class="btn primary" type="button">批量改状态</button>
+            </div>
+            <div class="panel-body">
+              <div class="filters">
+                <div class="field">
+                  <label for="search">搜索编号/名称</label>
+                  <input id="search" value="A-20" />
+                </div>
+                <div class="field">
+                  <label for="date-filter">归档日期</label>
+                  <input id="date-filter" value="2026-06-06" />
+                </div>
+                <div class="field">
+                  <label for="status-filter">状态</label>
+                  <select id="status-filter">
+                    <option>全部状态</option>
+                    <option>待出图</option>
+                    <option>待验收</option>
+                    <option>待生产</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="type-filter">图片类型</label>
+                  <select id="type-filter">
+                    <option>全部类型</option>
+                    <option>手提包</option>
+                    <option>单肩背包</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="batch-filter">批次</label>
+                  <select id="batch-filter">
+                    <option>B20260606003</option>
+                    <option>B20260606002</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="suite-filter">套图</label>
+                  <select id="suite-filter">
+                    <option>全部</option>
+                    <option>缺套图</option>
+                    <option>已有套图</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mobile-hint">表格可横向滚动查看完整字段。</div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>主图</th>
+                      <th>类型</th>
+                      <th>状态</th>
+                      <th>归档日期</th>
+                      <th>数量</th>
+                      <th>套图</th>
+                      <th>操作人</th>
+                      <th>更新时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div class="item-cell">
+                          <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_pc_1.png" alt="示例主图" />
+                          <div>
+                            <div class="row-title">A-2048</div>
+                            <div class="row-sub">夏季套装主图</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span class="tag blue">手提包</span></td>
+                      <td><span class="tag blue">待出图</span></td>
+                      <td>2026-06-06</td>
+                      <td>120 / 0</td>
+                      <td>2 / 10</td>
+                      <td>张三</td>
+                      <td>14:22</td>
+                      <td><button class="link-button" type="button" data-screen-link="detail">详情</button></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <div class="item-cell">
+                          <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_pc_2.png" alt="示例主图" />
+                          <div>
+                            <div class="row-title">A-2081</div>
+                            <div class="row-sub">基础款图片</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span class="tag green">单肩背包</span></td>
+                      <td><span class="tag amber">待验收</span></td>
+                      <td>2026-06-06</td>
+                      <td>80 / 0</td>
+                      <td>8 / 10</td>
+                      <td>李四</td>
+                      <td>13:40</td>
+                      <td><button class="link-button" type="button" data-screen-link="detail">详情</button></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <div class="item-cell">
+                          <img class="mini-thumb" src="../../gpt_image_playground/docs/images/example_mb_2.jpg" alt="示例主图" />
+                          <div>
+                            <div class="row-title">A-2096</div>
+                            <div class="row-sub">生产确认图</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span class="tag blue">手提包</span></td>
+                      <td><span class="tag green">待生产</span></td>
+                      <td>2026-06-06</td>
+                      <td>200 / 40</td>
+                      <td>10 / 10</td>
+                      <td>王五</td>
+                      <td>11:18</td>
+                      <td><button class="link-button" type="button" data-screen-link="detail">详情</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="manual" class="screen">
+          <div class="scenario-strip">
+            <div>
+              <strong>手动上传：不通过 Excel，直接把图片归档为主图记录</strong>
+              <span>适合补录、临时新增、少量图片处理；支持一次传多张，也支持一张一张维护编号。</span>
+            </div>
+            <span class="tag blue">待保存归档</span>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>手动上传工作区</h2>
+                <p>上传后每张图片仍然是一条主图数据，进入同一个归档列表。</p>
+              </div>
+              <div class="upload-mode-tabs" aria-label="上传方式">
+                <button type="button" aria-selected="true">批量上传</button>
+                <button type="button" aria-selected="false">单张上传</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="manual-grid">
+                <div>
+                  <div class="drop-gallery">
+                    <div>
+                      <strong>拖入图片或选择文件</strong>
+                      <span>支持 jpg/png，可一次选择多张，也可以只上传一张。</span>
+                      <div class="file-actions">
+                        <button class="btn primary" type="button">选择图片</button>
+                        <button class="btn" type="button">清空</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-grid" style="margin-top: 14px;">
+                    <div class="field">
+                      <label for="manual-date">归档日期</label>
+                      <input id="manual-date" value="2026-06-06" />
+                    </div>
+                    <div class="field">
+                      <label for="manual-operator">当前操作人</label>
+                      <input id="manual-operator" value="张三（当前登录用户）" disabled />
+                    </div>
+                    <div class="field">
+                      <label for="manual-type">默认图片类型</label>
+                      <select id="manual-type">
+                        <option>手提包</option>
+                        <option>单肩背包</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="subsection-head">
+                    <div>
+                      <h2>待归档图片</h2>
+                      <p>批量上传时，可逐张补编号、名称和数量；编号重复会跳过。</p>
+                    </div>
+                    <button class="btn primary" type="button">保存 3 条到归档</button>
+                  </div>
+                  <div class="manual-preview">
+                    <div class="manual-card">
+                      <img src="../../gpt_image_playground/docs/images/example_pc_1.png" alt="手动上传图片" />
+                      <div class="manual-card-body">
+                        <input value="A-3012" aria-label="编号" />
+                        <input value="手动补录主图" aria-label="名称" />
+                        <select aria-label="图片类型">
+                          <option>手提包</option>
+                          <option>单肩背包</option>
+                        </select>
+                        <span class="tag green">可归档</span>
+                      </div>
+                    </div>
+                    <div class="manual-card">
+                      <img src="../../gpt_image_playground/docs/images/example_pc_2.png" alt="手动上传图片" />
+                      <div class="manual-card-body">
+                        <input value="A-3013" aria-label="编号" />
+                        <input value="临时新增主图" aria-label="名称" />
+                        <select aria-label="图片类型">
+                          <option>单肩背包</option>
+                          <option>手提包</option>
+                        </select>
+                        <span class="tag green">可归档</span>
+                      </div>
+                    </div>
+                    <div class="manual-card">
+                      <img src="../../gpt_image_playground/docs/images/example_mb_1.jpg" alt="手动上传图片" />
+                      <div class="manual-card-body">
+                        <input value="A-1660" aria-label="编号" />
+                        <input value="重复编号示例" aria-label="名称" />
+                        <select aria-label="图片类型">
+                          <option>手提包</option>
+                          <option>单肩背包</option>
+                        </select>
+                        <span class="tag amber">重复编号</span>
+                      </div>
+                    </div>
+                    <div class="manual-card">
+                      <div class="manual-empty">单张上传占位</div>
+                      <div class="manual-card-body">
+                        <input placeholder="输入编号" aria-label="编号" />
+                        <input placeholder="输入名称" aria-label="名称" />
+                        <select aria-label="图片类型">
+                          <option>手提包</option>
+                          <option>单肩背包</option>
+                        </select>
+                        <span class="tag blue">待上传</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="detail" class="screen">
+          <div class="scenario-strip">
+            <div>
+              <strong>图片中心 / A-2048 主图详情</strong>
+              <span>从图片中心点击“详情”进入，用于维护当前主图、套图、数量和状态。</span>
+            </div>
+            <button class="btn" type="button" data-screen-link="center">返回图片中心</button>
+          </div>
+          <div class="detail-layout">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>A-2048 主图</h2>
+                  <p>归档日期 2026-06-06，批次 B20260606003。</p>
+                </div>
+                <span class="tag blue">待出图</span>
+              </div>
+              <div class="panel-body">
+                <div class="main-preview">
+                  <img src="../../gpt_image_playground/docs/images/example_pc_1.png" alt="主图预览" />
+                </div>
+                <div class="detail-stats">
+                  <div class="stat-box">
+                    <span>需求数量</span>
+                    <strong>120</strong>
+                  </div>
+                  <div class="stat-box">
+                    <span>已生产</span>
+                    <strong>0</strong>
+                  </div>
+                  <div class="stat-box">
+                    <span>套图</span>
+                    <strong>2/10</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>详情维护</h2>
+                  <p>状态可自由切换，所有变更写入操作日志。</p>
+                </div>
+                <button class="btn" type="button">下载全部</button>
+              </div>
+              <div class="panel-body">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="detail-status">当前状态</label>
+                    <select id="detail-status">
+                      <option>待出图</option>
+                      <option>出图中</option>
+                      <option>待验收</option>
+                      <option>待生产</option>
+                      <option>已完成</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="detail-operator">当前操作人</label>
+                    <input id="detail-operator" value="张三（当前登录用户）" disabled />
+                  </div>
+                  <div class="field">
+                    <label for="detail-type">图片类型</label>
+                    <select id="detail-type">
+                      <option>手提包</option>
+                      <option>单肩背包</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="required-count">需求数量</label>
+                    <input id="required-count" value="120" />
+                  </div>
+                  <div class="field">
+                    <label for="done-count">已生产数量</label>
+                    <input id="done-count" value="0" />
+                  </div>
+                </div>
+                <div class="subsection">
+                  <div class="subsection-head">
+                    <div>
+                      <h2>套图</h2>
+                      <p>按上传顺序展示，最多 10 张。</p>
+                    </div>
+                    <button class="btn primary" type="button">上传套图</button>
+                  </div>
+                  <div class="suite-grid">
+                    <div class="suite-item">
+                      <img src="../../gpt_image_playground/docs/images/example_pc_2.png" alt="套图 1" />
+                      <div class="suite-caption">01 · 已上传</div>
+                    </div>
+                    <div class="suite-item">
+                      <img src="../../gpt_image_playground/docs/images/example_mb_1.jpg" alt="套图 2" />
+                      <div class="suite-caption">02 · 已上传</div>
+                    </div>
+                    <div class="suite-item">
+                      <div class="suite-placeholder">03</div>
+                      <div class="suite-caption">待上传</div>
+                    </div>
+                    <div class="suite-item">
+                      <div class="suite-placeholder">04</div>
+                      <div class="suite-caption">待上传</div>
+                    </div>
+                    <div class="suite-item">
+                      <div class="suite-placeholder">05</div>
+                      <div class="suite-caption">待上传</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="log-list">
+                  <div class="log-item">
+                    <strong>状态从“已入库”改为“待出图”</strong>
+                    <span>张三 · 2026-06-06 14:22</span>
+                  </div>
+                  <div class="log-item">
+                    <strong>上传套图 2 张</strong>
+                    <span>李四 · 2026-06-06 14:10</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="board" class="screen">
+          <div class="kanban">
+            <div class="lane">
+              <div class="lane-head">
+                <span>已入库</span>
+                <span class="tag blue">36</span>
+              </div>
+              <div class="lane-body">
+                <div class="task-card">
+                  <img src="../../gpt_image_playground/docs/images/example_pc_1.png" alt="看板主图" />
+                  <strong>A-2048</strong>
+                  <span>套图 2/10 · 数量 120</span>
+                </div>
+              </div>
+            </div>
+            <div class="lane">
+              <div class="lane-head">
+                <span>待验收</span>
+                <span class="tag amber">18</span>
+              </div>
+              <div class="lane-body">
+                <div class="task-card">
+                  <img src="../../gpt_image_playground/docs/images/example_pc_2.png" alt="看板主图" />
+                  <strong>A-2081</strong>
+                  <span>套图 8/10 · 数量 80</span>
+                </div>
+              </div>
+            </div>
+            <div class="lane">
+              <div class="lane-head">
+                <span>待生产</span>
+                <span class="tag green">24</span>
+              </div>
+              <div class="lane-body">
+                <div class="task-card">
+                  <img src="../../gpt_image_playground/docs/images/example_mb_2.jpg" alt="看板主图" />
+                  <strong>A-2096</strong>
+                  <span>套图 10/10 · 数量 200</span>
+                </div>
+              </div>
+            </div>
+            <div class="lane">
+              <div class="lane-head">
+                <span>需修改</span>
+                <span class="tag red">7</span>
+              </div>
+              <div class="lane-body">
+                <div class="task-card">
+                  <img src="../../gpt_image_playground/docs/images/example_mb_1.jpg" alt="看板主图" />
+                  <strong>A-2112</strong>
+                  <span>套图 5/10 · 验收退回</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const titles = {
+        import: ["Excel 导入", "上传表格后先识别图片、编号和排除字样，确认无误再入库。"],
+        archive: ["图片归档", "选择归档方式：通过 Excel 批量导入，或手动上传图片。"],
+        center: ["图片中心", "查看所有已归档图片，并按类型、状态、日期和编号筛选管理。"],
+        manual: ["手动上传", "不通过 Excel，直接批量上传或单张上传图片并保存到归档。"],
+        detail: ["主图详情", "查看主图、维护数量、上传套图并追踪操作记录。"],
+        board: ["状态看板", "按工作流状态查看当前出图和生产进度。"],
+      };
+
+      const actions = {
+        import: "确认入库",
+        archive: "Excel 导入",
+        center: "批量改状态",
+        manual: "保存到归档",
+        detail: "保存修改",
+        board: "刷新看板",
+      };
+
+      function activateScreen(name) {
+        const activeNav = name === "detail" ? "center" : name === "import" || name === "manual" ? "archive" : name;
+        document.querySelectorAll(".screen").forEach((screen) => {
+          screen.classList.toggle("active", screen.id === name);
+        });
+        document.querySelectorAll("[data-screen]").forEach((button) => {
+          button.setAttribute("aria-selected", String(button.dataset.screen === activeNav));
+        });
+        document.getElementById("page-title").textContent = titles[name][0];
+        document.getElementById("page-subtitle").textContent = titles[name][1];
+        document.getElementById("primary-action").textContent = actions[name];
+      }
+
+      document.querySelectorAll("[data-screen]").forEach((button) => {
+        button.addEventListener("click", () => activateScreen(button.dataset.screen));
+      });
+
+      document.querySelectorAll("[data-screen-link]").forEach((button) => {
+        button.addEventListener("click", () => activateScreen(button.dataset.screenLink));
+      });
+
+      document.getElementById("login-button").addEventListener("click", () => {
+        document.body.classList.remove("is-login");
+        activateScreen("archive");
+      });
+
+      document.getElementById("logout-button").addEventListener("click", () => {
+        document.body.classList.add("is-login");
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+TASK_PROGRESS.local.md
+
+# dependencies
+node_modules/
+app/node_modules/
+
+# build output
+dist/
+app/dist/
+
+# local runtime data
+app/data/db.json
+app/data/db.json.tmp
+app/data/db.corrupt-*.json
+app/uploads/
+
+# logs and system files
+*.log
+.DS_Store
