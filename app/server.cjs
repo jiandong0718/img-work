@@ -14,6 +14,24 @@ const DB_FILE = path.join(DATA_DIR, 'db.json')
 const UPLOAD_DIR = path.join(ROOT, 'uploads')
 const HOST = process.env.API_HOST || '127.0.0.1'
 const PORT = Number(process.env.API_PORT || 5190)
+const imageStatuses = new Set([
+  'stored',
+  'pending_design',
+  'designing',
+  'pending_acceptance',
+  'pending_production',
+  'completed',
+  'need_revision',
+])
+const imageStatusLabels = {
+  stored: '已入库',
+  pending_design: '待出图',
+  designing: '出图中',
+  pending_acceptance: '待验收',
+  pending_production: '待生产',
+  completed: '已完成',
+  need_revision: '需修改',
+}
 
 const sampleImages = [
   '/sample/example_pc_1.png',
@@ -928,6 +946,45 @@ async function route(req, res) {
     addLog(db, item.id, 'Excel 导入入库', operatorName)
     await writeDb(db)
     sendJson(res, 200, { item })
+    return
+  }
+
+  if (req.method === 'PATCH' && url.pathname === '/api/image-items/batch-status') {
+    const body = await readJson(req)
+    const ids = Array.isArray(body.ids) ? Array.from(new Set(body.ids.map((id) => String(id)))) : []
+    const status = String(body.status || '')
+    const operatorName = body.operatorName || '张三'
+    if (ids.length === 0) {
+      sendJson(res, 400, { error: '请选择需要修改的主图' })
+      return
+    }
+    if (!imageStatuses.has(status)) {
+      sendJson(res, 400, { error: '目标状态不正确' })
+      return
+    }
+
+    const updated = []
+    const skipped = []
+    const itemById = new Map(db.imageItems.map((item) => [item.id, item]))
+    ids.forEach((id) => {
+      const item = itemById.get(id)
+      if (!item) {
+        skipped.push({ id, reason: '主图不存在' })
+        return
+      }
+      if (item.deletedAt) {
+        skipped.push({ id, reason: '已删除主图不可批量改状态' })
+        return
+      }
+      item.status = status
+      item.operatorName = operatorName
+      item.updatedAt = nowTime()
+      updated.push(item)
+      addLog(db, item.id, `批量改状态为${imageStatusLabels[status]}`, operatorName)
+    })
+
+    await writeDb(db)
+    sendJson(res, 200, { updated, skipped })
     return
   }
 

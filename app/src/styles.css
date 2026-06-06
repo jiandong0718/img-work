@@ -124,6 +124,12 @@ select {
   padding: 0 10px;
 }
 
+input[type='checkbox'] {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--primary);
+}
+
 .login-hero {
   position: relative;
   display: grid;
@@ -1047,6 +1053,33 @@ nav button.active {
   overflow: auto;
 }
 
+.batch-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 220px) auto auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #c9dce3;
+  border-radius: 8px;
+  background: #f4fafc;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.batch-bar div {
+  display: grid;
+  gap: 3px;
+}
+
+.batch-bar strong {
+  font-size: 14px;
+}
+
+.batch-bar span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .empty-table {
   min-height: 90px;
   display: grid;
@@ -1057,7 +1090,7 @@ nav button.active {
 
 table {
   width: 100%;
-  min-width: 900px;
+  min-width: 960px;
   border-collapse: collapse;
 }
 
@@ -1072,6 +1105,11 @@ td {
 th {
   color: var(--muted);
   background: #fbfcfd;
+}
+
+.select-col {
+  width: 48px;
+  text-align: center;
 }
 
 .item-cell {
@@ -1447,6 +1485,10 @@ th {
   .queue-item .tag,
   .queue-item small {
     grid-column: 2;
+  }
+
+  .batch-bar {
+    grid-template-columns: 1fr;
   }
 
   .preview-overlay {

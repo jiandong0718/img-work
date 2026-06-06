@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import type { ExcelImportPreview, ImageAttachment, ImageItem, ImageStatus, ImageType, ManualDraft, OperationLog, OperationLogWithItem, Screen, User } from './types'
 import {
+  batchUpdateImageStatus,
   confirmExcelImport,
   confirmManualUpload,
   createImageAttachments,
@@ -150,6 +151,23 @@ function App() {
     setLogs(logs)
   }
 
+  async function batchChangeStatus(ids: string[], status: ImageStatus) {
+    if (!user) return
+    try {
+      const { updated, skipped } = await batchUpdateImageStatus(ids, status, user.displayName)
+      setItems((current) => {
+        const updatedById = new Map(updated.map((item) => [item.id, item]))
+        return current.map((item) => updatedById.get(item.id) ?? item)
+      })
+      if (skipped.length > 0) {
+        setError(`已更新 ${updated.length} 条，跳过 ${skipped.length} 条。`)
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '批量修改失败')
+      throw error
+    }
+  }
+
   async function uploadSuiteImages(id: string, files: Array<{ fileName: string; fileUrl: string }>) {
     if (!user) return
     const { attachments, item: updated } = await createImageAttachments(id, files, user.displayName)
@@ -209,10 +227,7 @@ function App() {
             }}
             onSoftDelete={(id) => updateItem(id, { deletedAt: new Date().toISOString() }, '软删除主图')}
             onRestore={(id) => updateItem(id, { deletedAt: '' }, '恢复主图')}
-            onBatchStatus={(status) => {
-              const ids = items.filter((item) => !item.deletedAt).map((item) => item.id)
-              ids.forEach((id) => updateItem(id, { status }, `批量改状态为${statusLabels[status]}`))
-            }}
+            onBatchStatus={batchChangeStatus}
             onPreview={openPreview}
           />
         )}
@@ -1025,7 +1040,7 @@ function ImageCenter({
   onOpen: (id: string) => void
   onSoftDelete: (id: string) => void
   onRestore: (id: string) => void
-  onBatchStatus: (status: ImageStatus) => void
+  onBatchStatus: (ids: string[], status: ImageStatus) => Promise<void>
   onPreview: (url: string, title: string, subtitle?: string) => void
 }) {
   const [query, setQuery] = useState('')
@@ -1034,6 +1049,9 @@ function ImageCenter({
   const [archiveDate, setArchiveDate] = useState('')
   const [deleteView, setDeleteView] = useState<'active' | 'deleted' | 'all'>('active')
   const [page, setPage] = useState(1)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [batchStatus, setBatchStatus] = useState<ImageStatus>('pending_design')
+  const [batchSaving, setBatchSaving] = useState(false)
   const pageSize = 10
 
   const filtered = useMemo(
@@ -1054,21 +1072,50 @@ function ImageCenter({
     setPage(1)
   }, [archiveDate, deleteView, query, status, type])
 
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => filtered.some((item) => item.id === id && !item.deletedAt)))
+  }, [filtered])
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, totalPages)
   const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const activeCount = items.filter((item) => !item.deletedAt).length
+  const selectablePagedIds = paged.filter((item) => !item.deletedAt).map((item) => item.id)
+  const selectedCount = selectedIds.length
+  const allPagedSelected = selectablePagedIds.length > 0 && selectablePagedIds.every((id) => selectedIds.includes(id))
+
+  function toggleOne(id: string, checked: boolean) {
+    setSelectedIds((current) => {
+      if (checked) return current.includes(id) ? current : [...current, id]
+      return current.filter((selectedId) => selectedId !== id)
+    })
+  }
+
+  function togglePage(checked: boolean) {
+    setSelectedIds((current) => {
+      if (!checked) return current.filter((id) => !selectablePagedIds.includes(id))
+      return Array.from(new Set([...current, ...selectablePagedIds]))
+    })
+  }
+
+  async function submitBatchStatus() {
+    if (selectedIds.length === 0) return
+    setBatchSaving(true)
+    try {
+      await onBatchStatus(selectedIds, batchStatus)
+      setSelectedIds([])
+    } finally {
+      setBatchSaving(false)
+    }
+  }
 
   return (
     <section className="panel">
       <div className="panel-head">
         <div>
           <h2>图片中心</h2>
-          <p>有效 {activeCount} 条主图，当前筛选 {filtered.length} 条。</p>
+          <p>有效 {activeCount} 条主图，当前筛选 {filtered.length} 条，已选 {selectedCount} 条。</p>
         </div>
-        <button className="btn primary" onClick={() => onBatchStatus('pending_design')}>
-          批量改为待出图
-        </button>
       </div>
       <div className="filters">
         <label>
@@ -1107,10 +1154,37 @@ function ImageCenter({
           </select>
         </label>
       </div>
+      <div className="batch-bar">
+        <div>
+          <strong>批量状态流转</strong>
+          <span>先勾选主图，再选择目标状态。</span>
+        </div>
+        <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as ImageStatus)}>
+          {Object.entries(statusLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button className="btn primary" onClick={submitBatchStatus} disabled={selectedCount === 0 || batchSaving}>
+          {batchSaving ? '提交中...' : `修改 ${selectedCount} 条`}
+        </button>
+        <button className="btn" onClick={() => setSelectedIds([])} disabled={selectedCount === 0 || batchSaving}>
+          清空选择
+        </button>
+      </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={allPagedSelected}
+                  onChange={(event) => togglePage(event.target.checked)}
+                  aria-label="选择当前页"
+                />
+              </th>
               <th>主图</th>
               <th>类型</th>
               <th>状态</th>
@@ -1124,6 +1198,15 @@ function ImageCenter({
           <tbody>
             {paged.map((item) => (
               <tr key={item.id} className={item.deletedAt ? 'deleted-row' : ''}>
+                <td className="select-col">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(item.id)}
+                    disabled={Boolean(item.deletedAt)}
+                    onChange={(event) => toggleOne(item.id, event.target.checked)}
+                    aria-label={`选择${item.code}`}
+                  />
+                </td>
                 <td>
                   <div className="item-cell">
                     <button

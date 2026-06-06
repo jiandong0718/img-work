@@ -1,4 +1,4 @@
-import type { ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageType, ManualDraft, OperationLog, OperationLogWithItem, User } from './types'
+import type { BatchStatusResult, ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageStatus, ImageType, ManualDraft, OperationLog, OperationLogWithItem, User } from './types'
 
 const API_BASE = '/api'
 
@@ -67,6 +67,13 @@ export function updateImageItem(id: string, patch: Partial<ImageItem>, action: s
   return request<{ item: ImageItem }>(`/image-items/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ patch, action, operatorName }),
+  })
+}
+
+export function batchUpdateImageStatus(ids: string[], status: ImageStatus, operatorName: string) {
+  return request<BatchStatusResult>('/image-items/batch-status', {
+    method: 'PATCH',
+    body: JSON.stringify({ ids, status, operatorName }),
   })
 }
 

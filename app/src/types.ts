@@ -63,6 +63,11 @@ export interface OperationLogWithItem extends OperationLog {
   archiveDate?: string
 }
 
+export interface BatchStatusResult {
+  updated: ImageItem[]
+  skipped: Array<{ id: string; reason: string }>
+}
+
 export interface ImageAttachment {
   id: string
   imageItemId: string
