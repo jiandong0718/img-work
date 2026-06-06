@@ -714,28 +714,7 @@ function ManualUpload({
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [uploadMessage, setUploadMessage] = useState('')
-  const [drafts, setDrafts] = useState<ManualDraft[]>([
-    {
-      id: 'draft-1',
-      fileName: 'handbag-01.png',
-      code: 'A-3012',
-      name: '手动补录主图',
-      type: 'hand_bag',
-      requiredQuantity: 60,
-      imageUrl: sampleImages[0],
-      duplicate: false,
-    },
-    {
-      id: 'draft-2',
-      fileName: 'shoulder-01.png',
-      code: 'A-2081',
-      name: '重复编号示例',
-      type: 'shoulder_bag',
-      requiredQuantity: 40,
-      imageUrl: sampleImages[1],
-      duplicate: true,
-    },
-  ])
+  const [drafts, setDrafts] = useState<ManualDraft[]>([])
 
   function updateDraft(id: string, patch: Partial<ManualDraft>) {
     setDrafts((current) =>
@@ -745,23 +724,6 @@ function ManualUpload({
         return { ...next, duplicate: existingCodes.includes(next.code.trim()) }
       }),
     )
-  }
-
-  function addDraft() {
-    const index = drafts.length % sampleImages.length
-    setDrafts((current) => [
-      ...current,
-      {
-        id: `draft-${Date.now()}`,
-        fileName: `upload-${current.length + 1}.png`,
-        code: '',
-        name: '',
-        type: 'hand_bag',
-        requiredQuantity: 1,
-        imageUrl: sampleImages[index],
-        duplicate: false,
-      },
-    ])
   }
 
   function fileToDataUrl(file: File) {
@@ -818,6 +780,7 @@ function ManualUpload({
   }
 
   const validCount = drafts.filter((draft) => draft.code.trim() && !draft.duplicate).length
+  const removeDraft = (id: string) => setDrafts((current) => current.filter((draft) => draft.id !== id))
 
   return (
     <section className="panel">
@@ -847,9 +810,6 @@ function ManualUpload({
                 }}
               />
             </label>
-            <button className="btn" onClick={addDraft}>
-              添加示例图
-            </button>
             {uploading && <span>上传中...</span>}
             {uploadMessage && <span className="upload-success">{uploadMessage}</span>}
             {uploadError && <span className="upload-error">{uploadError}</span>}
@@ -860,26 +820,36 @@ function ManualUpload({
           </label>
         </div>
         <div className="draft-grid">
-          {drafts.map((draft) => (
-            <article className="draft-card" key={draft.id}>
-              <img src={draft.imageUrl} alt={draft.fileName} />
-              <div className="draft-fields">
-                <input value={draft.code} placeholder="编号" onChange={(event) => updateDraft(draft.id, { code: event.target.value })} />
-                <input value={draft.name} placeholder="名称" onChange={(event) => updateDraft(draft.id, { name: event.target.value })} />
-                <select value={draft.type} onChange={(event) => updateDraft(draft.id, { type: event.target.value as ImageType })}>
-                  <option value="hand_bag">手提包</option>
-                  <option value="shoulder_bag">单肩背包</option>
-                </select>
-                <input
-                  type="number"
-                  min="1"
-                  value={draft.requiredQuantity}
-                  onChange={(event) => updateDraft(draft.id, { requiredQuantity: Number(event.target.value) })}
-                />
-                <span className={`tag ${draft.duplicate ? 'warning' : 'success'}`}>{draft.duplicate ? '重复编号' : '可归档'}</span>
-              </div>
-            </article>
-          ))}
+          {drafts.length === 0 ? (
+            <div className="empty-archive">
+              <strong>还没有待归档图片</strong>
+              <span>点击左侧“选择图片”，上传真实 jpg/png 图片后再填写编号、类型和数量。</span>
+            </div>
+          ) : (
+            drafts.map((draft) => (
+              <article className="draft-card" key={draft.id}>
+                <button className="draft-remove" onClick={() => removeDraft(draft.id)} aria-label={`移除${draft.fileName}`}>
+                  移除
+                </button>
+                <img src={draft.imageUrl} alt={draft.fileName} />
+                <div className="draft-fields">
+                  <input value={draft.code} placeholder="编号" onChange={(event) => updateDraft(draft.id, { code: event.target.value })} />
+                  <input value={draft.name} placeholder="名称" onChange={(event) => updateDraft(draft.id, { name: event.target.value })} />
+                  <select value={draft.type} onChange={(event) => updateDraft(draft.id, { type: event.target.value as ImageType })}>
+                    <option value="hand_bag">手提包</option>
+                    <option value="shoulder_bag">单肩背包</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="1"
+                    value={draft.requiredQuantity}
+                    onChange={(event) => updateDraft(draft.id, { requiredQuantity: Number(event.target.value) })}
+                  />
+                  <span className={`tag ${draft.duplicate ? 'warning' : 'success'}`}>{draft.duplicate ? '重复编号' : '可归档'}</span>
+                </div>
+              </article>
+            ))
+          )}
         </div>
       </div>
     </section>

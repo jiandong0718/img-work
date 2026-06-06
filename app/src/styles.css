@@ -1033,9 +1033,27 @@ nav button.active {
 }
 
 .draft-card {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
+}
+
+.draft-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  min-height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--red);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 10px;
+  box-shadow: 0 6px 14px rgba(23, 32, 38, 0.12);
 }
 
 .draft-card img {
