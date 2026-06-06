@@ -537,6 +537,33 @@ function ExcelImport({
     }
   }
 
+  function downloadImportReport() {
+    if (!preview) return
+    const escapeCell = (value: string | number) => `"${String(value ?? '').replace(/"/g, '""')}"`
+    const rows = [
+      ['文件名', '归档日期', '默认类型', '总行数', '可入库', '跳过', '说明'],
+      [preview.fileName, archiveDate, imageTypeLabels[type], preview.totalRows, preview.importableCount, preview.skippedCount, preview.message],
+      [],
+      ['行号', '编号', '名称', '数量', '结果'],
+      ...preview.rows.map((row) => [
+        row.rowNumber,
+        row.code || '-',
+        row.name || '-',
+        row.requiredQuantity,
+        row.skipReason || '可归档',
+      ]),
+    ]
+    const csv = `\uFEFF${rows.map((row) => row.map(escapeCell).join(',')).join('\n')}`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${preview.fileName.replace(/\.[^.]+$/u, '') || '导入报告'}-导入报告.csv`
+    document.body.appendChild(link)
+    link.click()
+    URL.revokeObjectURL(link.href)
+    link.remove()
+  }
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -578,6 +605,9 @@ function ExcelImport({
             <span>共 {preview.totalRows} 行</span>
             <span className="tag success">可入库 {preview.importableCount}</span>
             <span className="tag warning">跳过 {preview.skippedCount}</span>
+            <button className="btn" onClick={downloadImportReport}>
+              下载导入报告
+            </button>
           </div>
           <p>{preview.message}</p>
           {preview.rows.length > 0 && (
@@ -837,10 +867,12 @@ function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: s
   const sourceRows = [
     {
       label: 'Excel 导入',
+      tone: 'source-excel',
       count: activeItems.filter((item) => item.sourceType === 'excel').length,
     },
     {
       label: '手动上传',
+      tone: 'source-manual',
       count: activeItems.filter((item) => item.sourceType === 'manual').length,
     },
   ].map((row) => ({
@@ -883,7 +915,7 @@ function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: s
           </div>
           <div className="bar-list">
             {statusRows.map((row) => (
-              <div className="bar-row" key={row.status}>
+              <div className={`bar-row tone-${row.status}`} key={row.status}>
                 <div>
                   <strong>{row.label}</strong>
                   <span>{row.count} 张</span>
@@ -908,7 +940,7 @@ function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: s
             <div>
               <h3>图片类型</h3>
               {typeRows.map((row) => (
-                <div className="compact-bar" key={row.type}>
+                <div className={`compact-bar tone-${row.type}`} key={row.type}>
                   <span>{row.label}</span>
                   <div className="bar-track">
                     <span style={{ width: `${row.percent}%` }} />
@@ -920,7 +952,7 @@ function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: s
             <div>
               <h3>归档来源</h3>
               {sourceRows.map((row) => (
-                <div className="compact-bar" key={row.label}>
+                <div className={`compact-bar tone-${row.tone}`} key={row.label}>
                   <span>{row.label}</span>
                   <div className="bar-track">
                     <span style={{ width: `${row.percent}%` }} />

@@ -697,7 +697,62 @@ nav button.active {
   height: 100%;
   min-width: 4px;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--primary), var(--green));
+  background: linear-gradient(90deg, var(--bar-start, var(--primary)), var(--bar-end, var(--green)));
+}
+
+.tone-stored {
+  --bar-start: #50606c;
+  --bar-end: #7f8b95;
+}
+
+.tone-pending_design {
+  --bar-start: #176b87;
+  --bar-end: #4f9bb4;
+}
+
+.tone-designing {
+  --bar-start: #6f53b7;
+  --bar-end: #9b7ad7;
+}
+
+.tone-pending_acceptance {
+  --bar-start: #9a5a00;
+  --bar-end: #d28a20;
+}
+
+.tone-pending_production {
+  --bar-start: #b65b2a;
+  --bar-end: #de8757;
+}
+
+.tone-completed {
+  --bar-start: #197a52;
+  --bar-end: #49a978;
+}
+
+.tone-need_revision {
+  --bar-start: #b3261e;
+  --bar-end: #d96a62;
+}
+
+.tone-hand_bag {
+  --bar-start: #176b87;
+  --bar-end: #74a8ba;
+}
+
+.tone-shoulder_bag {
+  --bar-start: #7a5a18;
+  --bar-end: #bc9445;
+}
+
+.tone-source-excel {
+  --bar-start: #197a52;
+  --bar-end: #70b58d;
+}
+
+.tone-source-manual {
+  --bar-start: #6f53b7;
+  --bar-end: #a690d7;
 }
 
 .split-bars {
