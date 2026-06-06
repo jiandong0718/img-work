@@ -41,6 +41,19 @@ const sampleImages = [
   '/sample/example_mb_2.jpg',
 ]
 
+function safeDownloadName(value: string, fallback = 'image') {
+  const normalized = value
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .slice(0, 80)
+  return normalized || fallback
+}
+
+function toDownloadHref(url: string) {
+  return new URL(url, window.location.href).href
+}
+
 const initialItems: ImageItem[] = [
   {
     id: 'img-1',
@@ -1494,8 +1507,8 @@ function DetailView({
 
   function downloadFile(url: string) {
     const link = document.createElement('a')
-    link.href = url
-    link.download = ''
+    link.href = toDownloadHref(url)
+    link.download = safeDownloadName(item.code)
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -1729,8 +1742,8 @@ function ImagePreviewModal({
 
   function downloadFile() {
     const link = document.createElement('a')
-    link.href = preview.url
-    link.download = preview.title
+    link.href = toDownloadHref(preview.url)
+    link.download = safeDownloadName(preview.title)
     document.body.appendChild(link)
     link.click()
     link.remove()
