@@ -10,9 +10,26 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...options.headers,
     },
   })
-  const data = await response.json()
+  const text = await response.text()
+  const contentType = response.headers.get('content-type') || ''
+  let data: { error?: string } | null = null
+  if (text && contentType.includes('application/json')) {
+    try {
+      data = JSON.parse(text) as { error?: string }
+    } catch {
+      throw new Error(`接口 JSON 解析失败：${response.status}`)
+    }
+  }
+  if (text && !contentType.includes('application/json')) {
+    const preview = text.replace(/\s+/g, ' ').slice(0, 120)
+    const isHtml = /^\s*</.test(text)
+    const hint = isHtml
+      ? '服务器返回了 HTML，通常是 /api 没有代理到后端，或导入文件超过服务器上传限制。'
+      : '接口未返回 JSON，请确认后端服务和代理是否正常。'
+    throw new Error(`${hint}状态码：${response.status}，返回：${preview}`)
+  }
   if (!response.ok) {
-    throw new Error(data.error || '请求失败')
+    throw new Error(data?.error || `请求失败：${response.status}`)
   }
   return data as T
 }
