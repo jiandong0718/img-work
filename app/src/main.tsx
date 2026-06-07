@@ -1462,8 +1462,10 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
   const [operator, setOperator] = useState('')
   const [status, setStatus] = useState<'all' | ImageStatus>('all')
   const [date, setDate] = useState('')
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const pageSize = 12
 
   useEffect(() => {
     setLoading(true)
@@ -1493,6 +1495,13 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
       }),
     [date, logs, operator, query, status],
   )
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const pagedLogs = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  useEffect(() => {
+    setPage(1)
+  }, [date, operator, query, status])
 
   return (
     <section className="panel">
@@ -1537,58 +1546,54 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
       {loading && <div className="empty-archive">日志加载中...</div>}
       {error && <div className="save-state dirty">{error}</div>}
       {!loading && !error && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>主图</th>
-                <th>动作</th>
-                <th>状态</th>
-                <th>操作人</th>
-                <th>时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((log) => {
-                const imageItemId = log.imageItemId
-                return (
-                  <tr key={log.id}>
-                    <td>
-                      <div className="item-cell">
-                        {log.imageUrl && <img src={log.imageUrl} alt={log.itemName} />}
-                        {!log.imageUrl && <span className="system-log-badge">系统</span>}
-                        <div>
-                          <strong>{log.itemCode}</strong>
-                          <span>{log.itemName}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>{log.action}</td>
-                    <td>{log.itemStatus ? <span className="tag info">{statusLabels[log.itemStatus]}</span> : '-'}</td>
-                    <td>{log.operatorName}</td>
-                    <td>{log.createdAt}</td>
-                    <td>
-                      {imageItemId ? (
-                        <button className="link-btn" onClick={() => onOpen(imageItemId)}>
-                          详情
-                        </button>
-                      ) : (
-                        <span className="muted">-</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6}>
-                    <div className="empty-table">暂无匹配日志</div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="audit-list">
+          {pagedLogs.map((log) => {
+            const imageItemId = log.imageItemId
+            const isSystemLog = log.scope === 'auth' || !imageItemId
+            return (
+              <article className="audit-row" key={log.id}>
+                <div className={`audit-type ${isSystemLog ? 'system' : 'image'}`}>{isSystemLog ? '系统' : '主图'}</div>
+                <div className="audit-main">
+                  <div>
+                    <strong>{log.action}</strong>
+                    <span>
+                      {log.itemCode} · {log.itemName}
+                    </span>
+                  </div>
+                  <div className="audit-meta">
+                    <span>{log.operatorName}</span>
+                    <span>{log.createdAt}</span>
+                    {log.itemStatus && <span>{statusLabels[log.itemStatus]}</span>}
+                  </div>
+                </div>
+                <div className="audit-action">
+                  {imageItemId ? (
+                    <button className="link-btn" onClick={() => onOpen(imageItemId)}>
+                      详情
+                    </button>
+                  ) : (
+                    <span className="muted">-</span>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+          {filtered.length === 0 && <div className="empty-table">暂无匹配日志</div>}
+          {filtered.length > 0 && (
+            <div className="pagination">
+              <span>
+                第 {currentPage} / {totalPages} 页，每页 {pageSize} 条
+              </span>
+              <div>
+                <button className="btn" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={currentPage <= 1}>
+                  上一页
+                </button>
+                <button className="btn" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={currentPage >= totalPages}>
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
