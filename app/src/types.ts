@@ -106,6 +106,7 @@ export interface ExcelImportRow {
   rowNumber: number
   code: string
   name: string
+  type?: ImageType
   requiredQuantity: number
   imageUrl: string
   skipReason: string

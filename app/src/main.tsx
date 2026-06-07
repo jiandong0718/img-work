@@ -760,11 +760,12 @@ function ExcelImport({
       ['文件名', '归档日期', '默认类型', '总行数', '确认入库', '确认跳过', '说明'],
       [preview.fileName, archiveDate, imageTypeLabels[type], preview.totalRows, selectedImportCount, skippedPreviewCount, preview.message],
       [],
-      ['行号', '编号', '名称', '数量', '识别结果', '入库选择'],
+      ['行号', '编号', '名称', '图片类型', '数量', '识别结果', '入库选择'],
       ...preview.rows.map((row) => [
         row.rowNumber,
         row.code || '-',
         row.name || '-',
+        imageTypeLabels[row.type || type],
         row.requiredQuantity,
         row.skipReason || '可归档',
         shouldIncludePreviewRow(row) ? '入库' : '跳过',
@@ -836,6 +837,7 @@ function ExcelImport({
                     <th>预览图</th>
                     <th>编号</th>
                     <th>名称</th>
+                    <th>图片类型</th>
                     <th>数量</th>
                     <th>结果</th>
                     <th>入库选择</th>
@@ -850,6 +852,16 @@ function ExcelImport({
                       </td>
                       <td>{row.code || '-'}</td>
                       <td>{row.name || '-'}</td>
+                      <td>
+                        <select
+                          className="inline-select"
+                          value={row.type || type}
+                          onChange={(event) => updatePreviewRow(index, { type: event.target.value as ImageType })}
+                        >
+                          <option value="hand_bag">手提包</option>
+                          <option value="shoulder_bag">单肩背包</option>
+                        </select>
+                      </td>
                       <td>{row.requiredQuantity}</td>
                       <td>
                         <span className={`tag ${row.skipReason ? 'warning' : 'success'}`}>{row.skipReason || '可归档'}</span>

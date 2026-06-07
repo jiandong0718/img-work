@@ -382,7 +382,7 @@ function createItemFromExcelRow(row, archiveDate, type, operatorName, index, bat
     id: `excel-${Date.now()}-${index}`,
     code: String(row.code || '').trim(),
     name: String(row.name || '').trim() || 'Excel 导入主图',
-    type: type === 'shoulder_bag' ? 'shoulder_bag' : 'hand_bag',
+    type: normalizeImageType(row.type, type),
     archiveDate,
     status: 'stored',
     requiredQuantity: Math.max(1, Number(row.requiredQuantity || 1)),
@@ -461,6 +461,13 @@ function findColumn(headers, keywords) {
 function findExcludeKeyword(value) {
   const text = String(value || '')
   return excludeImportKeywords.find((keyword) => text.includes(keyword)) || ''
+}
+
+function normalizeImageType(value, fallback = 'hand_bag') {
+  const text = String(value || '').trim().toLowerCase()
+  if (/单肩|肩背|斜挎|crossbody|shoulder/u.test(text)) return 'shoulder_bag'
+  if (/手提|托特|tote|hand/u.test(text)) return 'hand_bag'
+  return fallback === 'shoulder_bag' ? 'shoulder_bag' : 'hand_bag'
 }
 
 function decodeXml(value) {
@@ -651,7 +658,8 @@ async function saveXlsxMedia(zipFile, mediaEntry) {
   return `/uploads/${storedName}`
 }
 
-async function buildXlsxPreview({ fileName, content }, db) {
+async function buildXlsxPreview({ fileName, content, type }, db) {
+  const defaultType = normalizeImageType(type)
   const match = /^data:.*?;base64,(.+)$/u.exec(String(content || ''))
   if (!match) throw new Error('没有读取到 Excel 文件内容')
 
@@ -731,6 +739,7 @@ async function buildXlsxPreview({ fileName, content }, db) {
         rowNumber: anchor.rowNumber,
         code,
         name: name || `Excel 第 ${anchor.rowNumber} 行`,
+        type: defaultType,
         requiredQuantity: Number.isFinite(quantity) ? quantity : 1,
         imageUrl: await saveXlsxMedia(xlsxFile, anchor.mediaEntry),
         skipReason,
@@ -753,9 +762,10 @@ async function buildXlsxPreview({ fileName, content }, db) {
 }
 
 async function buildExcelPreview({ fileName, content, type }, db) {
+  const defaultType = normalizeImageType(type)
   const lowerName = String(fileName || '').toLowerCase()
   if (lowerName.endsWith('.xlsx')) {
-    return buildXlsxPreview({ fileName, content, type }, db)
+    return buildXlsxPreview({ fileName, content, type: defaultType }, db)
   }
   if (lowerName.endsWith('.xls')) {
     throw new Error('暂不支持旧版 .xls，请另存为 .xlsx 后导入')
@@ -765,6 +775,7 @@ async function buildExcelPreview({ fileName, content, type }, db) {
   const codeIndex = findColumn(headers, ['编号', '款号', '货号', 'code', 'sku'])
   const nameIndex = findColumn(headers, ['名称', '品名', 'name', 'title'])
   const quantityIndex = findColumn(headers, ['数量', '需求', '生产', 'qty', 'quantity'])
+  const typeIndex = findColumn(headers, ['类型', '图片类型', '品类', '类别', 'category', 'type'])
   const existingCodes = new Set(db.imageItems.map((item) => item.code))
   const seenCodes = new Set()
 
@@ -779,6 +790,7 @@ async function buildExcelPreview({ fileName, content, type }, db) {
         rowNumber: record.rowNumber,
         code: '',
         name: '',
+        type: defaultType,
         requiredQuantity: 1,
         imageUrl: sampleImages[0],
         skipReason: '缺少编号列',
@@ -791,6 +803,7 @@ async function buildExcelPreview({ fileName, content, type }, db) {
     const joined = record.cells.join(' ')
     const code = String(record.cells[codeIndex] || '').trim()
     const name = nameIndex >= 0 ? String(record.cells[nameIndex] || '').trim() : ''
+    const rowType = typeIndex >= 0 ? normalizeImageType(record.cells[typeIndex], defaultType) : defaultType
     const requiredQuantity = quantityIndex >= 0 ? Math.max(1, Number(record.cells[quantityIndex] || 1)) : 1
     let skipReason = ''
     if (!code) skipReason = '编号为空'
@@ -804,6 +817,7 @@ async function buildExcelPreview({ fileName, content, type }, db) {
       rowNumber: record.rowNumber,
       code,
       name: name || `Excel 第 ${record.rowNumber} 行`,
+      type: rowType,
       requiredQuantity: Number.isFinite(requiredQuantity) ? requiredQuantity : 1,
       imageUrl: sampleImages[index % sampleImages.length],
       skipReason,
@@ -1184,7 +1198,7 @@ async function route(req, res) {
         skipped.push({ code, reason: !include ? row.skipReason || '用户选择跳过' : (!code ? '编号为空' : '重复编号') })
         return
       }
-      const item = createItemFromExcelRow({ ...row, code }, archiveDate, type, operatorName, index)
+      const item = createItemFromExcelRow({ ...row, code, type: normalizeImageType(row.type, type) }, archiveDate, type, operatorName, index)
       existingCodes.add(item.code)
       created.push(item)
     })
