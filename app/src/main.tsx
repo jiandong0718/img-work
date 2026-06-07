@@ -1117,6 +1117,36 @@ function ImageCenter({
     }
   }
 
+  function downloadFilteredReport() {
+    const escapeCell = (value: string | number) => `"${String(value ?? '').replace(/"/g, '""')}"`
+    const rows = [
+      ['编号', '名称', '图片类型', '状态', '归档日期', '批次', '需求数量', '已生产数量', '套图数量', '来源', '操作人', '删除状态'],
+      ...filtered.map((item) => [
+        item.code,
+        item.name,
+        imageTypeLabels[item.type],
+        statusLabels[item.status],
+        item.archiveDate,
+        item.batchName || '-',
+        item.requiredQuantity,
+        item.producedQuantity,
+        item.suiteCount,
+        item.sourceType === 'excel' ? 'Excel 导入' : '手动上传',
+        item.operatorName,
+        item.deletedAt ? '已删除' : '有效',
+      ]),
+    ]
+    const csv = `\uFEFF${rows.map((row) => row.map(escapeCell).join(',')).join('\n')}`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${safeDownloadName(`图片中心-${new Date().toISOString().slice(0, 10)}`, '图片中心')}.csv`
+    document.body.appendChild(link)
+    link.click()
+    URL.revokeObjectURL(link.href)
+    link.remove()
+  }
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -1124,6 +1154,9 @@ function ImageCenter({
           <h2>图片中心</h2>
           <p>有效 {activeCount} 条主图，当前筛选 {filtered.length} 条，已选 {selectedCount} 条。</p>
         </div>
+        <button className="btn" onClick={downloadFilteredReport} disabled={filtered.length === 0}>
+          导出当前筛选
+        </button>
       </div>
       <div className="filters">
         <label>
