@@ -8,6 +8,7 @@ import {
   confirmManualUpload,
   createImageAttachments,
   deleteImageAttachment,
+  downloadSelectedImagePackage,
   fetchCurrentUser,
   fetchImageAttachments,
   fetchImageItems,
@@ -42,6 +43,8 @@ const statusLabels: Record<ImageStatus, string> = {
   completed: '已完成',
   deleted: '已删除',
 }
+
+const packageExportStatuses = new Set<ImageStatus>(['pending_acceptance', 'need_revision', 'revised', 'pending_production', 'production', 'completed'])
 
 const sampleImages = [
   '/sample/example_pc_1.png',
@@ -1257,6 +1260,8 @@ function ImageCenter({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [batchStatus, setBatchStatus] = useState<ImageStatus>('pending_design')
   const [batchSaving, setBatchSaving] = useState(false)
+  const [packageExporting, setPackageExporting] = useState(false)
+  const [packageError, setPackageError] = useState('')
   const pageSize = 10
 
   const filtered = useMemo(
@@ -1287,8 +1292,17 @@ function ImageCenter({
   const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const activeCount = items.filter(isActiveItem).length
   const selectablePagedIds = paged.filter(isActiveItem).map((item) => item.id)
+  const selectedItems = selectedIds.map((id) => items.find((item) => item.id === id)).filter((item): item is ImageItem => Boolean(item))
   const selectedCount = selectedIds.length
   const allPagedSelected = selectablePagedIds.length > 0 && selectablePagedIds.every((id) => selectedIds.includes(id))
+  const packageBlockedItems = selectedItems.filter((item) => !packageExportStatuses.has(item.status) || isDeletedItem(item))
+  const canExportPackage = selectedCount > 0 && packageBlockedItems.length === 0
+  const packageHint =
+    selectedCount === 0
+      ? '勾选待验收及后续流程的数据后，可导出图片包。'
+      : packageBlockedItems.length > 0
+        ? `有 ${packageBlockedItems.length} 条未到待验收，暂不能导出图片包。`
+        : '所选数据可导出图片包。'
 
   function toggleOne(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -1312,6 +1326,26 @@ function ImageCenter({
       setSelectedIds([])
     } finally {
       setBatchSaving(false)
+    }
+  }
+
+  async function exportSelectedPackage() {
+    if (!canExportPackage || packageExporting) return
+    setPackageExporting(true)
+    setPackageError('')
+    try {
+      const { blob, fileName } = await downloadSelectedImagePackage(selectedIds)
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = safeDownloadName(fileName, 'biz.zip')
+      document.body.appendChild(link)
+      link.click()
+      URL.revokeObjectURL(link.href)
+      link.remove()
+    } catch (error) {
+      setPackageError(error instanceof Error ? error.message : '图片包导出失败')
+    } finally {
+      setPackageExporting(false)
     }
   }
 
@@ -1423,6 +1457,16 @@ function ImageCenter({
           清空选择
         </button>
       </div>
+      <div className="package-bar">
+        <div>
+          <strong>所选图片包</strong>
+          <span>{packageHint}</span>
+        </div>
+        <button className="btn primary" onClick={exportSelectedPackage} disabled={!canExportPackage || packageExporting}>
+          {packageExporting ? '打包中...' : `导出 ${selectedCount} 条图片`}
+        </button>
+      </div>
+      {packageError && <div className="upload-error package-error">{packageError}</div>}
       <div className="table-wrap">
         <table>
           <thead>

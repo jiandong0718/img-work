@@ -111,6 +111,27 @@ export function batchUpdateImageStatus(ids: string[], status: ImageStatus, opera
   })
 }
 
+export async function downloadSelectedImagePackage(ids: string[]) {
+  const response = await fetch(`${API_BASE}/image-items/download-selected-package`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ids }),
+  })
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as { error?: string }
+      throw new Error(data.error || `请求失败：${response.status}`)
+    }
+    throw new Error(`请求失败：${response.status}`)
+  }
+  const disposition = response.headers.get('content-disposition') || ''
+  const fileName = disposition.match(/filename="([^"]+)"/u)?.[1] || `biz-${new Date().toISOString().slice(0, 10)}.zip`
+  return { blob: await response.blob(), fileName }
+}
+
 export function fetchImageLogs(id: string) {
   return request<{ logs: OperationLog[] }>(`/image-items/${id}/logs`)
 }

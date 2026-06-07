@@ -1193,6 +1193,38 @@ nav button.active {
   font-weight: 700;
 }
 
+.package-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #d7d0be;
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.package-bar div {
+  display: grid;
+  gap: 3px;
+}
+
+.package-bar strong {
+  font-size: 14px;
+}
+
+.package-bar span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.package-error {
+  display: block;
+  margin: -4px 0 12px;
+}
+
 .empty-table {
   min-height: 90px;
   display: grid;
@@ -1699,7 +1731,8 @@ th {
     grid-column: 2;
   }
 
-  .batch-bar {
+  .batch-bar,
+  .package-bar {
     grid-template-columns: 1fr;
   }
 

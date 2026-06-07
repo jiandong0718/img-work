@@ -44,6 +44,7 @@ const imageStatusLabels = {
   deleted: '已删除',
 }
 const excludeImportKeywords = ['删除', '返单', '不做', '不要', '作废', '取消', '不需要', '无需', '不要做']
+const packageExportStatuses = new Set(['pending_acceptance', 'need_revision', 'revised', 'pending_production', 'production', 'completed'])
 
 const sampleImages = [
   '/sample/example_pc_1.png',
@@ -177,6 +178,31 @@ function sendZipFile(res, filePath, fileName) {
     'Cache-Control': 'no-store',
   })
   fs.createReadStream(filePath).pipe(res)
+}
+
+async function copyItemImagesToPackage(db, item, targetDir) {
+  await fsp.mkdir(targetDir, { recursive: true })
+  let fileCount = 0
+  const mainPath = filePathFromUrl(item.imageUrl)
+  if (mainPath && fs.existsSync(mainPath)) {
+    const ext = path.extname(mainPath) || '.jpg'
+    await fsp.copyFile(mainPath, path.join(targetDir, `main-${safeFileName(item.code, 'image')}${ext}`))
+    fileCount += 1
+  }
+
+  const attachments = db.attachments
+    .filter((attachment) => attachment.imageItemId === item.id)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+  for (const attachment of attachments) {
+    const attachmentPath = filePathFromUrl(attachment.fileUrl)
+    if (!attachmentPath || !fs.existsSync(attachmentPath)) continue
+    const ext = path.extname(attachmentPath) || path.extname(attachment.fileName) || '.jpg'
+    const baseName = path.basename(attachment.fileName || 'suite', path.extname(attachment.fileName || ''))
+    const name = `suite-${String(attachment.sortOrder).padStart(2, '0')}-${safeFileName(baseName, 'suite')}${ext}`
+    await fsp.copyFile(attachmentPath, path.join(targetDir, name))
+    fileCount += 1
+  }
+  return fileCount
 }
 
 function sendJson(res, status, payload, headers = {}) {
@@ -1013,30 +1039,10 @@ async function route(req, res) {
 
     const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'image-package-'))
     const sourceDir = path.join(tempRoot, safeFileName(item.code, 'image-item'))
-    const suiteDir = path.join(sourceDir, 'suite')
     const zipFile = path.join(tempRoot, `${safeFileName(item.code, 'image-item')}.zip`)
 
     try {
-      await fsp.mkdir(suiteDir, { recursive: true })
-      let fileCount = 0
-      const mainPath = filePathFromUrl(item.imageUrl)
-      if (mainPath && fs.existsSync(mainPath)) {
-        const ext = path.extname(mainPath) || '.jpg'
-        await fsp.copyFile(mainPath, path.join(sourceDir, `main-${safeFileName(item.code)}${ext}`))
-        fileCount += 1
-      }
-
-      const attachments = db.attachments
-        .filter((attachment) => attachment.imageItemId === item.id)
-        .sort((left, right) => left.sortOrder - right.sortOrder)
-      for (const attachment of attachments) {
-        const attachmentPath = filePathFromUrl(attachment.fileUrl)
-        if (!attachmentPath || !fs.existsSync(attachmentPath)) continue
-        const ext = path.extname(attachmentPath) || path.extname(attachment.fileName) || '.jpg'
-        const name = `suite-${String(attachment.sortOrder).padStart(2, '0')}-${safeFileName(attachment.fileName, 'suite')}${ext}`
-        await fsp.copyFile(attachmentPath, path.join(suiteDir, name))
-        fileCount += 1
-      }
+      const fileCount = await copyItemImagesToPackage(db, item, sourceDir)
 
       if (fileCount === 0) {
         await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
@@ -1049,6 +1055,58 @@ async function route(req, res) {
         fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
       })
       sendZipFile(res, zipFile, `${safeFileName(item.code, 'image-package')}.zip`)
+    } catch (error) {
+      await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+      throw error
+    }
+    return
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/image-items/download-selected-package') {
+    const body = await readJson(req)
+    const ids = Array.isArray(body.ids) ? Array.from(new Set(body.ids.map((id) => String(id)))) : []
+    if (ids.length === 0) {
+      sendJson(res, 400, { error: '请选择需要导出的图片' })
+      return
+    }
+
+    const selectedItems = ids
+      .map((id) => db.imageItems.find((candidate) => candidate.id === id))
+      .filter(Boolean)
+    if (selectedItems.length !== ids.length) {
+      sendJson(res, 404, { error: '部分主图不存在，请刷新后重试' })
+      return
+    }
+
+    const invalidItems = selectedItems.filter((item) => !packageExportStatuses.has(item.status) || item.deletedAt)
+    if (invalidItems.length > 0) {
+      const names = invalidItems.slice(0, 3).map((item) => `${item.code}（${imageStatusLabels[item.status] || item.status}）`).join('、')
+      sendJson(res, 400, { error: `仅待验收及后续流程可导出图片包，请先处理：${names}${invalidItems.length > 3 ? '等' : ''}` })
+      return
+    }
+
+    const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'selected-image-package-'))
+    const packageDir = path.join(tempRoot, 'biz')
+    const zipFile = path.join(tempRoot, `biz-${new Date().toISOString().slice(0, 10)}.zip`)
+
+    try {
+      await fsp.mkdir(packageDir, { recursive: true })
+      let fileCount = 0
+      for (const item of selectedItems) {
+        fileCount += await copyItemImagesToPackage(db, item, path.join(packageDir, safeFileName(item.code, item.id)))
+      }
+
+      if (fileCount === 0) {
+        await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+        sendJson(res, 404, { error: '所选数据没有可打包的图片文件' })
+        return
+      }
+
+      await execFileAsync('zip', ['-qr', zipFile, path.basename(packageDir)], { cwd: tempRoot })
+      res.on('finish', () => {
+        fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+      })
+      sendZipFile(res, zipFile, `biz-${new Date().toISOString().slice(0, 10)}.zip`)
     } catch (error) {
       await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
       throw error
