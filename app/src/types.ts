@@ -1,4 +1,4 @@
-export type Screen = 'archive' | 'center' | 'manual' | 'excel' | 'detail' | 'dashboard' | 'logs'
+export type Screen = 'archive' | 'center' | 'manual' | 'excel' | 'detail' | 'dashboard' | 'logs' | 'users'
 
 export type ImageType = 'hand_bag' | 'shoulder_bag'
 
@@ -20,6 +20,8 @@ export interface User {
   account: string
   displayName: string
   role: 'admin' | 'member'
+  status?: 'active' | 'disabled'
+  createdAt?: string
 }
 
 export interface ImageItem {

@@ -119,6 +119,17 @@ export function fetchOperationLogs() {
   return request<{ logs: OperationLogWithItem[] }>('/operation-logs')
 }
 
+export function fetchUsers() {
+  return request<{ users: User[] }>('/users')
+}
+
+export function updateUserStatus(id: string, status: 'active' | 'disabled') {
+  return request<{ user: User }>(`/users/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
 export function fetchImageAttachments(id: string) {
   return request<{ attachments: ImageAttachment[] }>(`/image-items/${id}/attachments`)
 }

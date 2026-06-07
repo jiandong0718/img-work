@@ -13,12 +13,14 @@ import {
   fetchImageItems,
   fetchImageLogs,
   fetchOperationLogs,
+  fetchUsers,
   imagePackageDownloadUrl,
   login,
   logout,
   previewExcelImport,
   register,
   updateImageItem,
+  updateUserStatus,
   uploadImages,
 } from './api'
 
@@ -340,6 +342,7 @@ function App() {
             }}
           />
         )}
+        {screen === 'users' && user.role === 'admin' && <UserManagementView currentUser={user} />}
         {screen === 'detail' && selected && (
           <DetailView
             item={selected}
@@ -503,6 +506,11 @@ function Sidebar({
         <button className={active === 'logs' ? 'active' : ''} onClick={() => onNavigate('logs')}>
           操作日志
         </button>
+        {user.role === 'admin' && (
+          <button className={active === 'users' ? 'active' : ''} onClick={() => onNavigate('users')}>
+            用户管理
+          </button>
+        )}
       </nav>
       <div className="user-card">
         <strong>{user.displayName}</strong>
@@ -522,6 +530,7 @@ function Header({ screen }: { screen: Screen }) {
     detail: ['主图详情', '维护当前主图、生产数量、状态、套图和操作记录。'],
     dashboard: ['状态看板', '按状态、类型、来源和生产进度查看当前图片任务。'],
     logs: ['操作日志', '按主图、动作、操作人和日期追溯所有变更记录。'],
+    users: ['用户管理', '查看注册用户，管理员可以启用或停用成员账号。'],
   }
   return (
     <header className="topbar">
@@ -1588,6 +1597,123 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function UserManagementView({ currentUser }: { currentUser: User }) {
+  const [users, setUsers] = useState<User[]>([])
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [savingId, setSavingId] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setLoading(true)
+    fetchUsers()
+      .then(({ users }) => {
+        setUsers(users)
+        setError('')
+      })
+      .catch((error) => setError(error.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filtered = useMemo(
+    () =>
+      users.filter((user) => {
+        const keyword = query.trim()
+        return !keyword || user.account.includes(keyword) || user.displayName.includes(keyword)
+      }),
+    [query, users],
+  )
+
+  async function changeStatus(user: User, status: 'active' | 'disabled') {
+    setSavingId(user.id)
+    setMessage('')
+    setError('')
+    try {
+      const { user: updated } = await updateUserStatus(user.id, status)
+      setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      setMessage(`${updated.displayName} 已${status === 'active' ? '启用' : '停用'}`)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '用户状态修改失败')
+    } finally {
+      setSavingId('')
+    }
+  }
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>用户管理</h2>
+          <p>共 {users.length} 个用户，当前筛选 {filtered.length} 个。</p>
+        </div>
+      </div>
+      <div className="filters compact-filters">
+        <label>
+          搜索账号/姓名
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="账号 / 姓名" />
+        </label>
+      </div>
+      {message && <div className="save-state saved">{message}</div>}
+      {error && <div className="save-state dirty">{error}</div>}
+      {loading ? (
+        <div className="empty-archive">用户加载中...</div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>账号</th>
+                <th>姓名</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>注册时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((user) => {
+                const active = (user.status || 'active') === 'active'
+                const self = user.id === currentUser.id
+                return (
+                  <tr key={user.id}>
+                    <td>{user.account}</td>
+                    <td>{user.displayName}</td>
+                    <td>{user.role === 'admin' ? '管理员' : '成员'}</td>
+                    <td>
+                      <span className={`tag ${active ? 'success' : 'warning'}`}>{active ? '启用中' : '已停用'}</span>
+                    </td>
+                    <td>{user.createdAt || '-'}</td>
+                    <td>
+                      {active ? (
+                        <button className="link-btn danger" disabled={self || savingId === user.id} onClick={() => changeStatus(user, 'disabled')}>
+                          停用
+                        </button>
+                      ) : (
+                        <button className="link-btn" disabled={savingId === user.id} onClick={() => changeStatus(user, 'active')}>
+                          启用
+                        </button>
+                      )}
+                      {self && <span className="muted self-user">当前用户</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="empty-table">暂无匹配用户</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </section>

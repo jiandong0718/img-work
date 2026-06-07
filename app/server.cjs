@@ -280,7 +280,22 @@ function publicUser(user) {
     account: user.account,
     displayName: user.displayName,
     role: user.role,
+    status: user.status || 'active',
+    createdAt: user.createdAt,
   }
+}
+
+function requireAdmin(req, res, db) {
+  const user = findSessionUser(req, db)
+  if (!user) {
+    sendJson(res, 401, { error: '未登录或登录已过期，请重新登录' })
+    return null
+  }
+  if (user.role !== 'admin') {
+    sendJson(res, 403, { error: '只有管理员可以操作用户管理' })
+    return null
+  }
+  return user
 }
 
 function nowTime() {
@@ -890,6 +905,42 @@ async function route(req, res) {
 
   if (req.method === 'GET' && url.pathname === '/api/image-items') {
     sendJson(res, 200, { items: db.imageItems, batches: db.importBatches })
+    return
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/users') {
+    const currentUser = requireAdmin(req, res, db)
+    if (!currentUser) return
+    sendJson(res, 200, { users: db.users.map(publicUser) })
+    return
+  }
+
+  const userStatusMatch = url.pathname.match(/^\/api\/users\/([^/]+)\/status$/)
+  if (req.method === 'PATCH' && userStatusMatch) {
+    const currentUser = requireAdmin(req, res, db)
+    if (!currentUser) return
+    const body = await readJson(req)
+    const status = body.status === 'active' ? 'active' : body.status === 'disabled' ? 'disabled' : ''
+    if (!status) {
+      sendJson(res, 400, { error: '用户状态不正确' })
+      return
+    }
+    const target = db.users.find((candidate) => candidate.id === userStatusMatch[1])
+    if (!target) {
+      sendJson(res, 404, { error: '用户不存在' })
+      return
+    }
+    if (target.id === currentUser.id && status === 'disabled') {
+      sendJson(res, 400, { error: '不能停用当前登录用户' })
+      return
+    }
+    target.status = status
+    if (status === 'disabled') {
+      db.sessions = db.sessions.filter((session) => session.userId !== target.id)
+    }
+    addLog(db, null, `${status === 'active' ? '启用' : '停用'}用户 ${target.displayName}`, currentUser.displayName, 'auth')
+    await writeDb(db)
+    sendJson(res, 200, { user: publicUser(target) })
     return
   }
 

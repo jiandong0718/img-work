@@ -986,6 +986,10 @@ nav button.active {
   margin-bottom: 14px;
 }
 
+.compact-filters {
+  grid-template-columns: minmax(220px, 360px);
+}
+
 .upload-box {
   min-height: 190px;
   border: 1px dashed #9fb2bd;
@@ -1245,6 +1249,13 @@ th {
 
 .muted {
   color: var(--muted);
+}
+
+.self-user {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .audit-list {
