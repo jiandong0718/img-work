@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
-import type { ExcelImportPreview, ImageAttachment, ImageItem, ImageStatus, ImageType, ManualDraft, OperationLog, OperationLogWithItem, Screen, User } from './types'
+import type { ExcelImportPreview, ImageAttachment, ImageItem, ImageStatus, ImageType, ImportBatch, ManualDraft, OperationLog, OperationLogWithItem, Screen, User } from './types'
 import {
   batchUpdateImageStatus,
   confirmExcelImport,
@@ -120,6 +120,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null)
   const [screen, setScreen] = useState<Screen>('archive')
   const [items, setItems] = useState<ImageItem[]>(initialItems)
+  const [batches, setBatches] = useState<ImportBatch[]>([])
   const [selectedId, setSelectedId] = useState(initialItems[0].id)
   const [logs, setLogs] = useState<OperationLog[]>([])
   const [attachments, setAttachments] = useState<ImageAttachment[]>([])
@@ -129,7 +130,10 @@ function App() {
   useEffect(() => {
     if (!user) return
     fetchImageItems()
-      .then(({ items }) => setItems(items))
+      .then(({ items, batches }) => {
+        setItems(items)
+        setBatches(batches)
+      })
       .catch((error) => setError(error.message))
   }, [user])
 
@@ -158,15 +162,17 @@ function App() {
 
   async function saveManualDrafts(drafts: ManualDraft[], archiveDate: string) {
     if (!user) return
-    const { items: created } = await confirmManualUpload(drafts, archiveDate, user.displayName)
+    const { items: created, batch } = await confirmManualUpload(drafts, archiveDate, user.displayName)
     setItems((current) => [...created, ...current])
+    if (batch) setBatches((current) => [batch, ...current])
     setScreen('center')
   }
 
   async function saveExcelRows(preview: ExcelImportPreview, archiveDate: string, type: ImageType) {
     if (!user) return
-    const { items: created } = await confirmExcelImport(preview.rows, archiveDate, type, user.displayName)
+    const { items: created, batch } = await confirmExcelImport(preview.rows, archiveDate, type, user.displayName, preview.fileName)
     setItems((current) => [...created, ...current])
+    if (batch) setBatches((current) => [batch, ...current])
     setScreen('center')
   }
 
@@ -248,6 +254,7 @@ function App() {
         {screen === 'center' && (
           <ImageCenter
             items={items}
+            batches={batches}
             onOpen={(id) => {
               setSelectedId(id)
               setScreen('detail')
@@ -1027,6 +1034,7 @@ function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: s
 
 function ImageCenter({
   items,
+  batches,
   onOpen,
   onSoftDelete,
   onRestore,
@@ -1034,6 +1042,7 @@ function ImageCenter({
   onPreview,
 }: {
   items: ImageItem[]
+  batches: ImportBatch[]
   onOpen: (id: string) => void
   onSoftDelete: (id: string) => void
   onRestore: (id: string) => void
@@ -1044,6 +1053,7 @@ function ImageCenter({
   const [type, setType] = useState<'all' | ImageType>('all')
   const [status, setStatus] = useState<'all' | ImageStatus>('all')
   const [archiveDate, setArchiveDate] = useState('')
+  const [batchId, setBatchId] = useState('all')
   const [deleteView, setDeleteView] = useState<'active' | 'deleted' | 'all'>('active')
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -1058,16 +1068,17 @@ function ImageCenter({
         const matchesType = type === 'all' || item.type === type
         const matchesStatus = status === 'all' || item.status === status
         const matchesDate = !archiveDate || item.archiveDate === archiveDate
+        const matchesBatch = batchId === 'all' || item.batchId === batchId
         const matchesDelete =
           deleteView === 'all' || (deleteView === 'deleted' ? Boolean(item.deletedAt) : !item.deletedAt)
-        return matchesQuery && matchesType && matchesStatus && matchesDate && matchesDelete
+        return matchesQuery && matchesType && matchesStatus && matchesDate && matchesBatch && matchesDelete
       }),
-    [archiveDate, deleteView, items, query, status, type],
+    [archiveDate, batchId, deleteView, items, query, status, type],
   )
 
   useEffect(() => {
     setPage(1)
-  }, [archiveDate, deleteView, query, status, type])
+  }, [archiveDate, batchId, deleteView, query, status, type])
 
   useEffect(() => {
     setSelectedIds((current) => current.filter((id) => filtered.some((item) => item.id === id && !item.deletedAt)))
@@ -1143,6 +1154,17 @@ function ImageCenter({
           <input value={archiveDate} onChange={(event) => setArchiveDate(event.target.value)} placeholder="2026-06-06" />
         </label>
         <label>
+          导入批次
+          <select value={batchId} onChange={(event) => setBatchId(event.target.value)}>
+            <option value="all">全部批次</option>
+            {batches.map((batch) => (
+              <option key={batch.id} value={batch.id}>
+                {batch.name}（{batch.importedCount}）
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           删除状态
           <select value={deleteView} onChange={(event) => setDeleteView(event.target.value as 'active' | 'deleted' | 'all')}>
             <option value="active">仅有效</option>
@@ -1186,6 +1208,7 @@ function ImageCenter({
               <th>类型</th>
               <th>状态</th>
               <th>归档日期</th>
+              <th>批次</th>
               <th>数量</th>
               <th>套图</th>
               <th>操作人</th>
@@ -1225,6 +1248,7 @@ function ImageCenter({
                   {item.deletedAt && <span className="tag warning">已删除</span>}
                 </td>
                 <td>{item.archiveDate}</td>
+                <td>{item.batchName || '-'}</td>
                 <td>
                   {item.requiredQuantity} / {item.producedQuantity}
                 </td>

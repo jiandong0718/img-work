@@ -32,7 +32,22 @@ export interface ImageItem {
   operatorName: string
   updatedAt: string
   sourceType: 'excel' | 'manual'
+  batchId?: string
+  batchName?: string
   deletedAt?: string
+}
+
+export interface ImportBatch {
+  id: string
+  name: string
+  sourceType: 'excel' | 'manual'
+  archiveDate: string
+  fileName?: string
+  totalCount: number
+  importedCount: number
+  skippedCount: number
+  operatorName: string
+  createdAt: string
 }
 
 export interface ManualDraft {

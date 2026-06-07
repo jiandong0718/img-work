@@ -102,6 +102,7 @@ const defaultDb = {
     { id: 'log-1', imageItemId: 'img-1', action: 'Excel 导入入库', operatorName: '张三', createdAt: '2026-06-06 14:10' },
     { id: 'log-2', imageItemId: 'img-1', action: '状态改为待出图', operatorName: '张三', createdAt: '2026-06-06 14:22' },
   ],
+  importBatches: [],
   attachments: [],
 }
 
@@ -116,7 +117,14 @@ async function readDb() {
   await ensureDb()
   const content = await fsp.readFile(DB_FILE, 'utf-8')
   try {
-    return JSON.parse(content)
+    const db = JSON.parse(content)
+    db.attachments = Array.isArray(db.attachments) ? db.attachments : []
+    db.importBatches = Array.isArray(db.importBatches) ? db.importBatches : []
+    db.imageItems = (Array.isArray(db.imageItems) ? db.imageItems : []).map((item) => ({
+      ...item,
+      batchName: item.batchName || db.importBatches.find((batch) => batch.id === item.batchId)?.name,
+    }))
+    return db
   } catch (error) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const backupFile = path.join(DATA_DIR, `db.corrupt-${stamp}.json`)
@@ -234,7 +242,23 @@ function addLog(db, imageItemId, action, operatorName) {
   })
 }
 
-function createItemFromDraft(draft, archiveDate, operatorName, index) {
+function createImportBatch({ sourceType, archiveDate, fileName, totalCount, importedCount, skippedCount, operatorName }) {
+  const sourceLabel = sourceType === 'excel' ? 'Excel 导入' : '手动上传'
+  return {
+    id: `batch-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: `${archiveDate} ${sourceLabel}`,
+    sourceType,
+    archiveDate,
+    fileName,
+    totalCount,
+    importedCount,
+    skippedCount,
+    operatorName,
+    createdAt: `2026-06-06 ${nowTime()}`,
+  }
+}
+
+function createItemFromDraft(draft, archiveDate, operatorName, index, batch) {
   return {
     id: `manual-${Date.now()}-${index}`,
     code: String(draft.code || '').trim(),
@@ -249,10 +273,12 @@ function createItemFromDraft(draft, archiveDate, operatorName, index) {
     operatorName,
     updatedAt: nowTime(),
     sourceType: 'manual',
+    batchId: batch?.id,
+    batchName: batch?.name,
   }
 }
 
-function createItemFromExcelRow(row, archiveDate, type, operatorName, index) {
+function createItemFromExcelRow(row, archiveDate, type, operatorName, index, batch) {
   return {
     id: `excel-${Date.now()}-${index}`,
     code: String(row.code || '').trim(),
@@ -267,6 +293,8 @@ function createItemFromExcelRow(row, archiveDate, type, operatorName, index) {
     operatorName,
     updatedAt: nowTime(),
     sourceType: 'excel',
+    batchId: batch?.id,
+    batchName: batch?.name,
   }
 }
 
@@ -699,7 +727,6 @@ async function route(req, res) {
 
   const url = new URL(req.url, `http://${req.headers.host}`)
   const db = await readDb()
-  db.attachments = Array.isArray(db.attachments) ? db.attachments : []
 
   if (req.method === 'GET' && url.pathname.startsWith('/uploads/')) {
     const fileName = path.basename(url.pathname)
@@ -724,7 +751,7 @@ async function route(req, res) {
   }
 
   if (req.method === 'GET' && url.pathname === '/api/image-items') {
-    sendJson(res, 200, { items: db.imageItems })
+    sendJson(res, 200, { items: db.imageItems, batches: db.importBatches })
     return
   }
 
@@ -830,8 +857,9 @@ async function route(req, res) {
     const existingCodes = new Set(db.imageItems.map((item) => item.code))
     const created = []
     const skipped = []
+    const inputDrafts = Array.isArray(body.drafts) ? body.drafts : []
 
-    ;(body.drafts || []).forEach((draft, index) => {
+    inputDrafts.forEach((draft, index) => {
       const code = String(draft.code || '').trim()
       if (!code || existingCodes.has(code)) {
         skipped.push({ code, reason: !code ? '编号为空' : '重复编号' })
@@ -840,12 +868,28 @@ async function route(req, res) {
       const item = createItemFromDraft({ ...draft, code }, archiveDate, operatorName, index)
       existingCodes.add(item.code)
       created.push(item)
-      addLog(db, item.id, '手动上传入库', operatorName)
+    })
+
+    const batch = created.length > 0
+      ? createImportBatch({
+          sourceType: 'manual',
+          archiveDate,
+          totalCount: inputDrafts.length,
+          importedCount: created.length,
+          skippedCount: skipped.length,
+          operatorName,
+        })
+      : null
+    if (batch) db.importBatches.unshift(batch)
+    created.forEach((item) => {
+      item.batchId = batch?.id
+      item.batchName = batch?.name
+      addLog(db, item.id, `手动上传入库（${batch?.name || '无批次'}）`, operatorName)
     })
 
     db.imageItems.unshift(...created)
     await writeDb(db)
-    sendJson(res, 200, { items: created, skipped })
+    sendJson(res, 200, { items: created, batch, skipped })
     return
   }
 
@@ -905,8 +949,9 @@ async function route(req, res) {
     const existingCodes = new Set(db.imageItems.map((item) => item.code))
     const created = []
     const skipped = []
+    const rows = Array.isArray(body.rows) ? body.rows : []
 
-    ;(body.rows || []).forEach((row, index) => {
+    rows.forEach((row, index) => {
       const code = String(row.code || '').trim()
       if (!code || row.skipReason || existingCodes.has(code)) {
         skipped.push({ code, reason: row.skipReason || (!code ? '编号为空' : '重复编号') })
@@ -915,12 +960,29 @@ async function route(req, res) {
       const item = createItemFromExcelRow({ ...row, code }, archiveDate, type, operatorName, index)
       existingCodes.add(item.code)
       created.push(item)
-      addLog(db, item.id, 'Excel 导入入库', operatorName)
+    })
+
+    const batch = created.length > 0
+      ? createImportBatch({
+          sourceType: 'excel',
+          archiveDate,
+          fileName: body.fileName,
+          totalCount: rows.length,
+          importedCount: created.length,
+          skippedCount: skipped.length,
+          operatorName,
+        })
+      : null
+    if (batch) db.importBatches.unshift(batch)
+    created.forEach((item) => {
+      item.batchId = batch?.id
+      item.batchName = batch?.name
+      addLog(db, item.id, `Excel 导入入库（${batch?.name || '无批次'}）`, operatorName)
     })
 
     db.imageItems.unshift(...created)
     await writeDb(db)
-    sendJson(res, 200, { items: created, skipped })
+    sendJson(res, 200, { items: created, batch, skipped })
     return
   }
 

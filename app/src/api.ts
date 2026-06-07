@@ -1,4 +1,4 @@
-import type { BatchStatusResult, ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageStatus, ImageType, ManualDraft, OperationLog, OperationLogWithItem, User } from './types'
+import type { BatchStatusResult, ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageStatus, ImageType, ImportBatch, ManualDraft, OperationLog, OperationLogWithItem, User } from './types'
 
 const API_BASE = '/api'
 
@@ -42,11 +42,11 @@ export function login(account: string, password: string) {
 }
 
 export function fetchImageItems() {
-  return request<{ items: ImageItem[] }>('/image-items')
+  return request<{ items: ImageItem[]; batches: ImportBatch[] }>('/image-items')
 }
 
 export function confirmManualUpload(drafts: ManualDraft[], archiveDate: string, operatorName: string) {
-  return request<{ items: ImageItem[]; skipped: Array<{ code: string; reason: string }> }>('/manual-upload/confirm', {
+  return request<{ items: ImageItem[]; batch?: ImportBatch; skipped: Array<{ code: string; reason: string }> }>('/manual-upload/confirm', {
     method: 'POST',
     body: JSON.stringify({ drafts, archiveDate, operatorName }),
   })
@@ -73,10 +73,10 @@ export function previewExcelImport(fileName: string, content: string, archiveDat
   })
 }
 
-export function confirmExcelImport(rows: ExcelImportRow[], archiveDate: string, type: ImageType, operatorName: string) {
-  return request<{ items: ImageItem[]; skipped: Array<{ code: string; reason: string }> }>('/import/excel/confirm', {
+export function confirmExcelImport(rows: ExcelImportRow[], archiveDate: string, type: ImageType, operatorName: string, fileName?: string) {
+  return request<{ items: ImageItem[]; batch?: ImportBatch; skipped: Array<{ code: string; reason: string }> }>('/import/excel/confirm', {
     method: 'POST',
-    body: JSON.stringify({ rows, archiveDate, type, operatorName }),
+    body: JSON.stringify({ rows, archiveDate, type, operatorName, fileName }),
   })
 }
 
