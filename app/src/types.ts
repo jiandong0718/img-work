@@ -3,13 +3,17 @@ export type Screen = 'archive' | 'center' | 'manual' | 'excel' | 'detail' | 'das
 export type ImageType = 'hand_bag' | 'shoulder_bag'
 
 export type ImageStatus =
+  | 'pending_review'
   | 'stored'
   | 'pending_design'
   | 'designing'
   | 'pending_acceptance'
-  | 'pending_production'
-  | 'completed'
   | 'need_revision'
+  | 'revised'
+  | 'pending_production'
+  | 'production'
+  | 'completed'
+  | 'deleted'
 
 export interface User {
   id: string

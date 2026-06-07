@@ -25,13 +25,17 @@ const imageTypeLabels: Record<ImageType, string> = {
 }
 
 const statusLabels: Record<ImageStatus, string> = {
+  pending_review: '待核对',
   stored: '已入库',
   pending_design: '待出图',
   designing: '出图中',
   pending_acceptance: '待验收',
-  pending_production: '待生产',
-  completed: '已完成',
   need_revision: '需修改',
+  revised: '已修改',
+  pending_production: '待生产',
+  production: '生产中',
+  completed: '已完成',
+  deleted: '已删除',
 }
 
 const sampleImages = [
@@ -52,6 +56,14 @@ function safeDownloadName(value: string, fallback = 'image') {
 
 function toDownloadHref(url: string) {
   return new URL(url, window.location.href).href
+}
+
+function isActiveItem(item: ImageItem) {
+  return !isDeletedItem(item)
+}
+
+function isDeletedItem(item: ImageItem) {
+  return Boolean(item.deletedAt) || item.status === 'deleted'
 }
 
 const initialItems: ImageItem[] = [
@@ -259,8 +271,8 @@ function App() {
               setSelectedId(id)
               setScreen('detail')
             }}
-            onSoftDelete={(id) => updateItem(id, { deletedAt: new Date().toISOString() }, '软删除主图')}
-            onRestore={(id) => updateItem(id, { deletedAt: '' }, '恢复主图')}
+            onSoftDelete={(id) => updateItem(id, { deletedAt: new Date().toISOString(), status: 'deleted' }, '软删除主图')}
+            onRestore={(id) => updateItem(id, { deletedAt: '', status: 'stored' }, '恢复主图')}
             onBatchStatus={batchChangeStatus}
             onPreview={openPreview}
           />
@@ -421,7 +433,7 @@ function Header({ screen }: { screen: Screen }) {
 }
 
 function ArchiveHome({ items, onNavigate }: { items: ImageItem[]; onNavigate: (screen: Screen) => void }) {
-  const activeItems = items.filter((item) => !item.deletedAt)
+  const activeItems = items.filter(isActiveItem)
   const today = new Date().toISOString().slice(0, 10)
   const latestItems = [...activeItems]
     .sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0))
@@ -429,7 +441,7 @@ function ArchiveHome({ items, onNavigate }: { items: ImageItem[]; onNavigate: (s
   const todayCount = activeItems.filter((item) => item.archiveDate === today).length
   const excelCount = activeItems.filter((item) => item.sourceType === 'excel').length
   const manualCount = activeItems.filter((item) => item.sourceType === 'manual').length
-  const pendingCount = activeItems.filter((item) => item.status === 'pending_design' || item.status === 'designing').length
+  const pendingCount = activeItems.filter((item) => item.status !== 'stored' && item.status !== 'completed').length
   const completedCount = activeItems.filter((item) => item.status === 'completed').length
   const totalRequired = activeItems.reduce((sum, item) => sum + item.requiredQuantity, 0)
   const workflowSteps = ['上传识别', '预览排除', '确认入库', '出图验收', '生产完成']
@@ -864,7 +876,7 @@ function ManualUpload({
 }
 
 function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: string) => void }) {
-  const activeItems = items.filter((item) => !item.deletedAt)
+  const activeItems = items.filter(isActiveItem)
   const totalRequired = activeItems.reduce((sum, item) => sum + item.requiredQuantity, 0)
   const totalProduced = activeItems.reduce((sum, item) => sum + item.producedQuantity, 0)
   const productionRate = totalRequired > 0 ? Math.round((totalProduced / totalRequired) * 100) : 0
@@ -874,13 +886,17 @@ function StatusDashboard({ items, onOpen }: { items: ImageItem[]; onOpen: (id: s
     .filter((item) => item.status !== 'completed')
     .sort((a, b) => {
       const priority: Record<ImageStatus, number> = {
-        need_revision: 1,
-        pending_acceptance: 2,
-        pending_design: 3,
-        designing: 4,
-        pending_production: 5,
-        stored: 6,
-        completed: 7,
+        pending_review: 1,
+        need_revision: 2,
+        revised: 3,
+        pending_acceptance: 4,
+        pending_design: 5,
+        designing: 6,
+        pending_production: 7,
+        production: 8,
+        stored: 9,
+        completed: 10,
+        deleted: 11,
       }
       return priority[a.status] - priority[b.status]
     })
@@ -1069,8 +1085,8 @@ function ImageCenter({
         const matchesStatus = status === 'all' || item.status === status
         const matchesDate = !archiveDate || item.archiveDate === archiveDate
         const matchesBatch = batchId === 'all' || item.batchId === batchId
-        const matchesDelete =
-          deleteView === 'all' || (deleteView === 'deleted' ? Boolean(item.deletedAt) : !item.deletedAt)
+        const itemDeleted = isDeletedItem(item)
+        const matchesDelete = deleteView === 'all' || (deleteView === 'deleted' ? itemDeleted : !itemDeleted)
         return matchesQuery && matchesType && matchesStatus && matchesDate && matchesBatch && matchesDelete
       }),
     [archiveDate, batchId, deleteView, items, query, status, type],
@@ -1081,14 +1097,14 @@ function ImageCenter({
   }, [archiveDate, batchId, deleteView, query, status, type])
 
   useEffect(() => {
-    setSelectedIds((current) => current.filter((id) => filtered.some((item) => item.id === id && !item.deletedAt)))
+    setSelectedIds((current) => current.filter((id) => filtered.some((item) => item.id === id && !isDeletedItem(item))))
   }, [filtered])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, totalPages)
   const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const activeCount = items.filter((item) => !item.deletedAt).length
-  const selectablePagedIds = paged.filter((item) => !item.deletedAt).map((item) => item.id)
+  const activeCount = items.filter(isActiveItem).length
+  const selectablePagedIds = paged.filter(isActiveItem).map((item) => item.id)
   const selectedCount = selectedIds.length
   const allPagedSelected = selectablePagedIds.length > 0 && selectablePagedIds.every((id) => selectedIds.includes(id))
 
@@ -1133,7 +1149,7 @@ function ImageCenter({
         item.suiteCount,
         item.sourceType === 'excel' ? 'Excel 导入' : '手动上传',
         item.operatorName,
-        item.deletedAt ? '已删除' : '有效',
+        isDeletedItem(item) ? '已删除' : '有效',
       ]),
     ]
     const csv = `\uFEFF${rows.map((row) => row.map(escapeCell).join(',')).join('\n')}`
@@ -1249,67 +1265,70 @@ function ImageCenter({
             </tr>
           </thead>
           <tbody>
-            {paged.map((item) => (
-              <tr key={item.id} className={item.deletedAt ? 'deleted-row' : ''}>
-                <td className="select-col">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(item.id)}
-                    disabled={Boolean(item.deletedAt)}
-                    onChange={(event) => toggleOne(item.id, event.target.checked)}
-                    aria-label={`选择${item.code}`}
-                  />
-                </td>
-                <td>
-                  <div className="item-cell">
-                    <button
-                      className="thumb-button"
-                      onClick={() => onPreview(item.imageUrl, item.code, item.name)}
-                      aria-label={`预览${item.code}`}
-                    >
-                      <img src={item.imageUrl} alt={item.name} />
-                    </button>
-                    <div>
-                      <strong>{item.code}</strong>
-                      <span>{item.name}</span>
-                    </div>
-                  </div>
-                </td>
-                <td>{imageTypeLabels[item.type]}</td>
-                <td>
-                  <span className="tag info">{statusLabels[item.status]}</span>
-                  {item.deletedAt && <span className="tag warning">已删除</span>}
-                </td>
-                <td>{item.archiveDate}</td>
-                <td>{item.batchName || '-'}</td>
-                <td>
-                  {item.requiredQuantity} / {item.producedQuantity}
-                </td>
-                <td>{item.suiteCount} / 10</td>
-                <td>{item.operatorName}</td>
-                <td>
-                  <div className="row-actions">
-                    <button className="link-btn" onClick={() => onOpen(item.id)}>
-                      详情
-                    </button>
-                    {item.deletedAt ? (
-                      <button className="link-btn" onClick={() => onRestore(item.id)}>
-                        恢复
-                      </button>
-                    ) : (
+            {paged.map((item) => {
+              const itemDeleted = isDeletedItem(item)
+              return (
+                <tr key={item.id} className={itemDeleted ? 'deleted-row' : ''}>
+                  <td className="select-col">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      disabled={itemDeleted}
+                      onChange={(event) => toggleOne(item.id, event.target.checked)}
+                      aria-label={`选择${item.code}`}
+                    />
+                  </td>
+                  <td>
+                    <div className="item-cell">
                       <button
-                        className="link-btn danger"
-                        onClick={() => {
-                          if (window.confirm(`确认删除主图「${item.code}」吗？`)) onSoftDelete(item.id)
-                        }}
+                        className="thumb-button"
+                        onClick={() => onPreview(item.imageUrl, item.code, item.name)}
+                        aria-label={`预览${item.code}`}
                       >
-                        删除
+                        <img src={item.imageUrl} alt={item.name} />
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      <div>
+                        <strong>{item.code}</strong>
+                        <span>{item.name}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{imageTypeLabels[item.type]}</td>
+                  <td>
+                    <span className="tag info">{statusLabels[item.status]}</span>
+                    {itemDeleted && item.status !== 'deleted' && <span className="tag warning">已删除</span>}
+                  </td>
+                  <td>{item.archiveDate}</td>
+                  <td>{item.batchName || '-'}</td>
+                  <td>
+                    {item.requiredQuantity} / {item.producedQuantity}
+                  </td>
+                  <td>{item.suiteCount} / 10</td>
+                  <td>{item.operatorName}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="link-btn" onClick={() => onOpen(item.id)}>
+                        详情
+                      </button>
+                      {itemDeleted ? (
+                        <button className="link-btn" onClick={() => onRestore(item.id)}>
+                          恢复
+                        </button>
+                      ) : (
+                        <button
+                          className="link-btn danger"
+                          onClick={() => {
+                            if (window.confirm(`确认删除主图「${item.code}」吗？`)) onSoftDelete(item.id)
+                          }}
+                        >
+                          删除
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

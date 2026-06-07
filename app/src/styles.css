@@ -739,6 +739,11 @@ nav button.active {
   --bar-end: #7f8b95;
 }
 
+.tone-pending_review {
+  --bar-start: #0f766e;
+  --bar-end: #45a39a;
+}
+
 .tone-pending_design {
   --bar-start: #176b87;
   --bar-end: #4f9bb4;
@@ -767,6 +772,21 @@ nav button.active {
 .tone-need_revision {
   --bar-start: #b3261e;
   --bar-end: #d96a62;
+}
+
+.tone-revised {
+  --bar-start: #7c3aed;
+  --bar-end: #a78bfa;
+}
+
+.tone-production {
+  --bar-start: #c2410c;
+  --bar-end: #fb923c;
+}
+
+.tone-deleted {
+  --bar-start: #52525b;
+  --bar-end: #a1a1aa;
 }
 
 .tone-hand_bag {

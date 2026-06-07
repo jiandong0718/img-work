@@ -15,22 +15,30 @@ const UPLOAD_DIR = path.join(ROOT, 'uploads')
 const HOST = process.env.API_HOST || '127.0.0.1'
 const PORT = Number(process.env.API_PORT || 5190)
 const imageStatuses = new Set([
+  'pending_review',
   'stored',
   'pending_design',
   'designing',
   'pending_acceptance',
-  'pending_production',
-  'completed',
   'need_revision',
+  'revised',
+  'pending_production',
+  'production',
+  'completed',
+  'deleted',
 ])
 const imageStatusLabels = {
+  pending_review: '待核对',
   stored: '已入库',
   pending_design: '待出图',
   designing: '出图中',
   pending_acceptance: '待验收',
-  pending_production: '待生产',
-  completed: '已完成',
   need_revision: '需修改',
+  revised: '已修改',
+  pending_production: '待生产',
+  production: '生产中',
+  completed: '已完成',
+  deleted: '已删除',
 }
 
 const sampleImages = [
@@ -1039,6 +1047,9 @@ async function route(req, res) {
         return
       }
       item.status = status
+      if (status === 'deleted') {
+        item.deletedAt = new Date().toISOString()
+      }
       item.operatorName = operatorName
       item.updatedAt = nowTime()
       updated.push(item)
@@ -1058,7 +1069,15 @@ async function route(req, res) {
       sendJson(res, 404, { error: '主图不存在' })
       return
     }
-    Object.assign(item, body.patch || {}, {
+    const patch = body.patch || {}
+    if (patch.status && !imageStatuses.has(String(patch.status))) {
+      sendJson(res, 400, { error: '目标状态不正确' })
+      return
+    }
+    if (patch.status === 'deleted' && patch.deletedAt === undefined) {
+      patch.deletedAt = new Date().toISOString()
+    }
+    Object.assign(item, patch, {
       operatorName: body.operatorName || item.operatorName,
       updatedAt: nowTime(),
     })
