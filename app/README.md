@@ -24,7 +24,7 @@
 - 手动上传支持真实 jpg/png 上传，文件存放在 `uploads/`。
 - 套图上传复用本地图片上传能力，附件信息写入 `data/db.json`。
 - Excel 导入当前支持 `.xlsx` 内嵌图片基础解析和 CSV/TSV 文本表格真实识别；旧版 `.xls` 暂不支持，需另存为 `.xlsx`。
-- 数据存放在 `data/db.json` 中，可跨刷新保留。
+- 默认数据存放在 `data/db.json` 中，可跨刷新保留；也可以通过 `DATA_DRIVER=mysql` 切换到 MySQL。
 
 ## 运行
 
@@ -44,6 +44,48 @@ npm run dev
 
 当前 API 端口为 `5190`，前端开发服务器端口配置为 `5188`。如果端口被占用，Vite 会自动顺延到下一个可用端口。
 
+## MySQL 数据库
+
+默认仍使用 JSON 文件，方便本地开发。要切换到 MySQL：
+
+1. 创建数据库：
+
+```sql
+CREATE DATABASE image_archive_workbench DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+2. 复制环境变量示例：
+
+```bash
+cd image-archive-product/app
+cp .env.example .env
+```
+
+3. 修改 `.env`：
+
+```bash
+DATA_DRIVER=mysql
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=你的密码
+MYSQL_DATABASE=image_archive_workbench
+```
+
+4. 将当前 `data/db.json` 迁移到 MySQL：
+
+```bash
+npm run db:migrate:mysql
+```
+
+5. 启动 API：
+
+```bash
+npm run api
+```
+
+MySQL 模式会自动创建 `users`、`sessions`、`image_items`、`import_batches`、`attachments`、`operation_logs` 表。上传图片文件仍存放在 `uploads/`，数据库只保存图片 URL。
+
 ## 构建验证
 
 ```bash
@@ -57,4 +99,4 @@ npm run build
 2. 将 React state 替换为 API 数据。
 3. 接入真实图片上传。
 4. 接入 Excel 内嵌图片解析。
-5. 接入数据库、文件存储和操作日志。
+5. 继续优化数据库读写粒度、文件存储和操作日志。

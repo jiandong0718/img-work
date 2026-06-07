@@ -6,8 +6,25 @@ const fsp = require('fs/promises')
 const os = require('os')
 const path = require('path')
 const { promisify } = require('util')
+const { createMysqlStore } = require('./db/mysql-store.cjs')
 
 const execFileAsync = promisify(execFile)
+
+function loadEnvFile(filePath = path.join(__dirname, '.env')) {
+  if (!fs.existsSync(filePath)) return
+  const content = fs.readFileSync(filePath, 'utf-8')
+  content.split(/\r?\n/u).forEach((line) => {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) return
+    const separator = trimmed.indexOf('=')
+    if (separator < 0) return
+    const key = trimmed.slice(0, separator).trim()
+    const value = trimmed.slice(separator + 1).trim().replace(/^['"]|['"]$/gu, '')
+    if (key && process.env[key] === undefined) process.env[key] = value
+  })
+}
+
+loadEnvFile()
 
 const ROOT = __dirname
 const DATA_DIR = path.join(ROOT, 'data')
@@ -15,6 +32,7 @@ const DB_FILE = path.join(DATA_DIR, 'db.json')
 const UPLOAD_DIR = path.join(ROOT, 'uploads')
 const HOST = process.env.API_HOST || '127.0.0.1'
 const PORT = Number(process.env.API_PORT || 5190)
+const DATA_DRIVER = String(process.env.DATA_DRIVER || 'json').toLowerCase()
 const SESSION_COOKIE = 'img_work_session'
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 const imageStatuses = new Set([
@@ -120,7 +138,40 @@ const defaultDb = {
   attachments: [],
 }
 
+let mysqlStore
+
+function getMysqlStore() {
+  if (!mysqlStore) {
+    mysqlStore = createMysqlStore({ defaultDb, normalizeDb })
+  }
+  return mysqlStore
+}
+
+function normalizeDb(db) {
+  const normalized = {
+    users: Array.isArray(db.users) ? db.users : [],
+    sessions: Array.isArray(db.sessions) ? db.sessions : [],
+    imageItems: Array.isArray(db.imageItems) ? db.imageItems : [],
+    operationLogs: Array.isArray(db.operationLogs) ? db.operationLogs : [],
+    importBatches: Array.isArray(db.importBatches) ? db.importBatches : [],
+    attachments: Array.isArray(db.attachments) ? db.attachments : [],
+  }
+  normalized.imageItems = normalized.imageItems.map((item) => {
+    const batch = normalized.importBatches.find((candidate) => candidate.id === item.batchId)
+    return {
+      ...item,
+      batchCode: item.batchCode || batch?.code,
+      batchName: item.batchName || batch?.name,
+    }
+  })
+  return normalized
+}
+
 async function ensureDb() {
+  if (DATA_DRIVER === 'mysql') {
+    await getMysqlStore().ensureDb()
+    return
+  }
   await fsp.mkdir(DATA_DIR, { recursive: true })
   if (!fs.existsSync(DB_FILE)) {
     await writeDb(defaultDb)
@@ -128,36 +179,29 @@ async function ensureDb() {
 }
 
 async function readDb() {
+  if (DATA_DRIVER === 'mysql') return getMysqlStore().readDb()
   await ensureDb()
   const content = await fsp.readFile(DB_FILE, 'utf-8')
   try {
-    const db = JSON.parse(content)
-    db.attachments = Array.isArray(db.attachments) ? db.attachments : []
-    db.importBatches = Array.isArray(db.importBatches) ? db.importBatches : []
-    db.sessions = Array.isArray(db.sessions) ? db.sessions : []
-    db.imageItems = (Array.isArray(db.imageItems) ? db.imageItems : []).map((item) => {
-      const batch = db.importBatches.find((candidate) => candidate.id === item.batchId)
-      return {
-        ...item,
-        batchCode: item.batchCode || batch?.code,
-        batchName: item.batchName || batch?.name,
-      }
-    })
-    return db
+    return normalizeDb(JSON.parse(content))
   } catch (error) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const backupFile = path.join(DATA_DIR, `db.corrupt-${stamp}.json`)
     await fsp.writeFile(backupFile, content)
     await writeDb(defaultDb)
     console.error(`DB JSON is invalid. Backed up corrupted file to ${backupFile}`)
-    return JSON.parse(await fsp.readFile(DB_FILE, 'utf-8'))
+    return normalizeDb(JSON.parse(await fsp.readFile(DB_FILE, 'utf-8')))
   }
 }
 
 async function writeDb(db) {
+  if (DATA_DRIVER === 'mysql') {
+    await getMysqlStore().writeDb(db)
+    return
+  }
   await fsp.mkdir(DATA_DIR, { recursive: true })
   const tempFile = `${DB_FILE}.tmp`
-  await fsp.writeFile(tempFile, JSON.stringify(db, null, 2))
+  await fsp.writeFile(tempFile, JSON.stringify(normalizeDb(db), null, 2))
   await fsp.rename(tempFile, DB_FILE)
 }
 

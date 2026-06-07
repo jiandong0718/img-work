@@ -4,6 +4,10 @@ TASK_PROGRESS.local.md
 node_modules/
 app/node_modules/
 
+# env
+.env
+app/.env
+
 # build output
 dist/
 app/dist/
