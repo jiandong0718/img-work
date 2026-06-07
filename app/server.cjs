@@ -291,13 +291,22 @@ function nowTime() {
   }).format(new Date())
 }
 
-function addLog(db, imageItemId, action, operatorName) {
+function nowDateTime() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day} ${nowTime()}`
+}
+
+function addLog(db, imageItemId, action, operatorName, scope = 'image') {
   db.operationLogs.unshift({
     id: `log-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     imageItemId,
     action,
     operatorName,
-    createdAt: `2026-06-06 ${nowTime()}`,
+    createdAt: nowDateTime(),
+    scope,
   })
 }
 
@@ -313,7 +322,7 @@ function createImportBatch({ sourceType, archiveDate, fileName, totalCount, impo
     importedCount,
     skippedCount,
     operatorName,
-    createdAt: `2026-06-06 ${nowTime()}`,
+    createdAt: nowDateTime(),
   }
 }
 
@@ -806,6 +815,7 @@ async function route(req, res) {
       return
     }
     const sessionId = createSession(db, user)
+    addLog(db, null, '登录工作台', user.displayName, 'auth')
     await writeDb(db)
     sendJson(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(sessionId) })
     return
@@ -822,6 +832,10 @@ async function route(req, res) {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+    const user = findSessionUser(req, db)
+    if (user) {
+      addLog(db, null, '退出工作台', user.displayName, 'auth')
+    }
     removeSession(req, db)
     await writeDb(db)
     sendJson(res, 200, { ok: true }, { 'Set-Cookie': clearSessionCookie() })
@@ -924,7 +938,7 @@ async function route(req, res) {
       fileUrl: file.fileUrl,
       sortOrder: current.length + index + 1,
       operatorName,
-      createdAt: `2026-06-06 ${nowTime()}`,
+      createdAt: nowDateTime(),
     }))
     db.attachments.push(...created)
     item.suiteCount = current.length + created.length
@@ -1175,10 +1189,11 @@ async function route(req, res) {
     const itemsById = new Map(db.imageItems.map((item) => [item.id, item]))
     const logs = db.operationLogs.map((log) => {
       const item = itemsById.get(log.imageItemId)
+      const isAuthLog = log.scope === 'auth' || !log.imageItemId
       return {
         ...log,
-        itemCode: item?.code || '未知编号',
-        itemName: item?.name || '主图不存在',
+        itemCode: item?.code || (isAuthLog ? '系统登录' : '未知编号'),
+        itemName: item?.name || (isAuthLog ? '用户进出记录' : '主图不存在'),
         itemType: item?.type,
         itemStatus: item?.status,
         imageUrl: item?.imageUrl,

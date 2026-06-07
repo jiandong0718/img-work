@@ -67,10 +67,11 @@ export interface ManualDraft {
 
 export interface OperationLog {
   id: string
-  imageItemId: string
+  imageItemId?: string | null
   action: string
   operatorName: string
   createdAt: string
+  scope?: 'image' | 'auth'
 }
 
 export interface OperationLogWithItem extends OperationLog {

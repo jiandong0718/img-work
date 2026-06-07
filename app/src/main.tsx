@@ -1426,7 +1426,8 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
           !query ||
           log.itemCode.includes(query) ||
           log.itemName.includes(query) ||
-          log.action.includes(query)
+          log.action.includes(query) ||
+          log.operatorName.includes(query)
         const matchesOperator = !operator || log.operatorName === operator
         const matchesStatus = status === 'all' || log.itemStatus === status
         const matchesDate = !date || log.createdAt.startsWith(date)
@@ -1445,8 +1446,8 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
       <div className="filters">
         <label>
-          搜索编号/名称/动作
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="A-2048 / 上传套图" />
+          搜索编号/名称/动作/人员
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="A-2048 / 登录工作台 / 张三" />
         </label>
         <label>
           操作人
@@ -1491,28 +1492,36 @@ function OperationLogsView({ onOpen }: { onOpen: (id: string) => void }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((log) => (
-                <tr key={log.id}>
-                  <td>
-                    <div className="item-cell">
-                      {log.imageUrl && <img src={log.imageUrl} alt={log.itemName} />}
-                      <div>
-                        <strong>{log.itemCode}</strong>
-                        <span>{log.itemName}</span>
+              {filtered.map((log) => {
+                const imageItemId = log.imageItemId
+                return (
+                  <tr key={log.id}>
+                    <td>
+                      <div className="item-cell">
+                        {log.imageUrl && <img src={log.imageUrl} alt={log.itemName} />}
+                        {!log.imageUrl && <span className="system-log-badge">系统</span>}
+                        <div>
+                          <strong>{log.itemCode}</strong>
+                          <span>{log.itemName}</span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>{log.action}</td>
-                  <td>{log.itemStatus ? <span className="tag info">{statusLabels[log.itemStatus]}</span> : '-'}</td>
-                  <td>{log.operatorName}</td>
-                  <td>{log.createdAt}</td>
-                  <td>
-                    <button className="link-btn" onClick={() => onOpen(log.imageItemId)}>
-                      详情
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td>{log.action}</td>
+                    <td>{log.itemStatus ? <span className="tag info">{statusLabels[log.itemStatus]}</span> : '-'}</td>
+                    <td>{log.operatorName}</td>
+                    <td>{log.createdAt}</td>
+                    <td>
+                      {imageItemId ? (
+                        <button className="link-btn" onClick={() => onOpen(imageItemId)}>
+                          详情
+                        </button>
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6}>

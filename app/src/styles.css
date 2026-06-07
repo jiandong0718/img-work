@@ -1203,6 +1203,24 @@ th {
   border: 1px solid var(--line);
 }
 
+.system-log-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  border: 1px solid #d9e6ea;
+  background: #eef7f9;
+  color: #176b87;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--muted);
+}
+
 .thumb-button:hover img {
   border-color: #9cc6d2;
   box-shadow: 0 8px 18px rgba(23, 32, 38, 0.12);
