@@ -41,6 +41,16 @@ export function login(account: string, password: string) {
   })
 }
 
+export function fetchCurrentUser() {
+  return request<{ user: User }>('/auth/me')
+}
+
+export function logout() {
+  return request<{ ok: boolean }>('/auth/logout', {
+    method: 'POST',
+  })
+}
+
 export function fetchImageItems() {
   return request<{ items: ImageItem[]; batches: ImportBatch[] }>('/image-items')
 }

@@ -8,12 +8,14 @@ import {
   confirmManualUpload,
   createImageAttachments,
   deleteImageAttachment,
+  fetchCurrentUser,
   fetchImageAttachments,
   fetchImageItems,
   fetchImageLogs,
   fetchOperationLogs,
   imagePackageDownloadUrl,
   login,
+  logout,
   previewExcelImport,
   updateImageItem,
   uploadImages,
@@ -130,6 +132,7 @@ function BrandMark() {
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   const [screen, setScreen] = useState<Screen>('archive')
   const [items, setItems] = useState<ImageItem[]>(initialItems)
   const [batches, setBatches] = useState<ImportBatch[]>([])
@@ -140,14 +143,21 @@ function App() {
   const [preview, setPreview] = useState<{ url: string; title: string; subtitle?: string } | null>(null)
 
   useEffect(() => {
-    if (!user) return
+    fetchCurrentUser()
+      .then(({ user }) => setUser(user))
+      .catch(() => setUser(null))
+      .finally(() => setAuthReady(true))
+  }, [])
+
+  useEffect(() => {
+    if (!authReady || !user) return
     fetchImageItems()
       .then(({ items, batches }) => {
         setItems(items)
         setBatches(batches)
       })
       .catch((error) => setError(error.message))
-  }, [user])
+  }, [authReady, user])
 
   useEffect(() => {
     if (!user || screen !== 'detail' || !selectedId) return
@@ -159,12 +169,51 @@ function App() {
       .catch((error) => setError(error.message))
   }, [screen, selectedId, user])
 
+  async function logoutUser() {
+    try {
+      await logout()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '退出登录失败')
+    } finally {
+      setUser(null)
+      setScreen('archive')
+      setSelectedId(initialItems[0].id)
+      setLogs([])
+      setAttachments([])
+    }
+  }
+
+  if (!authReady) {
+    return (
+      <section className="login-page">
+        <div className="login-panel">
+          <div className="brand">
+            <BrandMark />
+            <div>
+              <strong>图片归档工作台</strong>
+              <span>正在确认登录状态</span>
+            </div>
+          </div>
+          <h1>正在进入工作台</h1>
+          <p>系统正在检查当前登录会话。</p>
+        </div>
+        <div className="login-hero" aria-hidden="true">
+          <div className="hero-stage">
+            <div className="hero-grid" />
+            <div className="scan-band" />
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   if (!user) {
     return (
       <LoginScreen
         onLogin={async (account, password) => {
           const { user } = await login(account, password)
           setUser(user)
+          setError('')
         }}
       />
     )
@@ -241,7 +290,7 @@ function App() {
         active={screen === 'detail' ? 'center' : screen === 'manual' || screen === 'excel' ? 'archive' : screen}
         user={user}
         onNavigate={setScreen}
-        onLogout={() => setUser(null)}
+        onLogout={logoutUser}
       />
       <main className="main">
         <Header screen={screen} />

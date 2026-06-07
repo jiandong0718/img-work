@@ -1,4 +1,5 @@
 const http = require('http')
+const crypto = require('crypto')
 const { execFile } = require('child_process')
 const fs = require('fs')
 const fsp = require('fs/promises')
@@ -14,6 +15,8 @@ const DB_FILE = path.join(DATA_DIR, 'db.json')
 const UPLOAD_DIR = path.join(ROOT, 'uploads')
 const HOST = process.env.API_HOST || '127.0.0.1'
 const PORT = Number(process.env.API_PORT || 5190)
+const SESSION_COOKIE = 'img_work_session'
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 const imageStatuses = new Set([
   'pending_review',
   'stored',
@@ -59,6 +62,7 @@ const defaultDb = {
       status: 'active',
     },
   ],
+  sessions: [],
   imageItems: [
     {
       id: 'img-1',
@@ -128,6 +132,7 @@ async function readDb() {
     const db = JSON.parse(content)
     db.attachments = Array.isArray(db.attachments) ? db.attachments : []
     db.importBatches = Array.isArray(db.importBatches) ? db.importBatches : []
+    db.sessions = Array.isArray(db.sessions) ? db.sessions : []
     db.imageItems = (Array.isArray(db.imageItems) ? db.imageItems : []).map((item) => ({
       ...item,
       batchName: item.batchName || db.importBatches.find((batch) => batch.id === item.batchId)?.name,
@@ -169,15 +174,61 @@ function sendZipFile(res, filePath, fileName) {
   fs.createReadStream(filePath).pipe(res)
 }
 
-function sendJson(res, status, payload) {
+function sendJson(res, status, payload, headers = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+    ...headers,
   })
   res.end(JSON.stringify(payload))
+}
+
+function parseCookies(req) {
+  return String(req.headers.cookie || '')
+    .split(';')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .reduce((cookies, item) => {
+      const separator = item.indexOf('=')
+      if (separator === -1) return cookies
+      cookies[decodeURIComponent(item.slice(0, separator))] = decodeURIComponent(item.slice(separator + 1))
+      return cookies
+    }, {})
+}
+
+function sessionCookie(value, maxAge = SESSION_MAX_AGE_SECONDS) {
+  return `${SESSION_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`
+}
+
+function clearSessionCookie() {
+  return sessionCookie('', 0)
+}
+
+function findSessionUser(req, db) {
+  const sessionId = parseCookies(req)[SESSION_COOKIE]
+  if (!sessionId) return null
+  const now = Date.now()
+  const session = db.sessions.find((candidate) => candidate.id === sessionId && Date.parse(candidate.expiresAt) > now)
+  if (!session) return null
+  const user = db.users.find((candidate) => candidate.id === session.userId && candidate.status === 'active')
+  return user || null
+}
+
+function createSession(db, user) {
+  const id = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString()
+  db.sessions = db.sessions.filter((session) => Date.parse(session.expiresAt) > Date.now() && session.userId !== user.id)
+  db.sessions.push({ id, userId: user.id, createdAt: new Date().toISOString(), expiresAt })
+  return id
+}
+
+function removeSession(req, db) {
+  const sessionId = parseCookies(req)[SESSION_COOKIE]
+  if (!sessionId) return
+  db.sessions = db.sessions.filter((session) => session.id !== sessionId)
 }
 
 function safeFileName(value, fallback = 'file') {
@@ -754,8 +805,35 @@ async function route(req, res) {
       sendJson(res, 401, { error: '账号或密码不正确' })
       return
     }
+    const sessionId = createSession(db, user)
+    await writeDb(db)
+    sendJson(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(sessionId) })
+    return
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/auth/me') {
+    const user = findSessionUser(req, db)
+    if (!user) {
+      sendJson(res, 401, { error: '未登录或登录已过期' })
+      return
+    }
     sendJson(res, 200, { user: publicUser(user) })
     return
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+    removeSession(req, db)
+    await writeDb(db)
+    sendJson(res, 200, { ok: true }, { 'Set-Cookie': clearSessionCookie() })
+    return
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    const user = findSessionUser(req, db)
+    if (!user) {
+      sendJson(res, 401, { error: '未登录或登录已过期，请重新登录' })
+      return
+    }
   }
 
   if (req.method === 'GET' && url.pathname === '/api/image-items') {
