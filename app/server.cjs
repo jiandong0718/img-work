@@ -43,6 +43,7 @@ const imageStatusLabels = {
   completed: '已完成',
   deleted: '已删除',
 }
+const excludeImportKeywords = ['删除', '返单', '不做', '不要', '作废', '取消', '不需要', '无需', '不要做']
 
 const sampleImages = [
   '/sample/example_pc_1.png',
@@ -432,6 +433,11 @@ function findColumn(headers, keywords) {
   })
 }
 
+function findExcludeKeyword(value) {
+  const text = String(value || '')
+  return excludeImportKeywords.find((keyword) => text.includes(keyword)) || ''
+}
+
 function decodeXml(value) {
   return String(value || '')
     .replace(/&amp;/g, '&')
@@ -691,7 +697,8 @@ async function buildXlsxPreview({ fileName, content }, db) {
       let skipReason = ''
       if (!columns) skipReason = '未识别到字段表头'
       if (!skipReason && !code) skipReason = '编号为空'
-      if (!skipReason && /删除|返单|不做|不要|作废/u.test(joined)) skipReason = '包含排除字样'
+      const excludeKeyword = findExcludeKeyword(joined)
+      if (!skipReason && excludeKeyword) skipReason = `包含排除字样：${excludeKeyword}`
       if (!skipReason && existingCodes.has(code)) skipReason = '重复编号'
       if (!skipReason && seenCodes.has(code)) skipReason = '文件内重复编号'
       if (!skipReason) seenCodes.add(code)
@@ -760,7 +767,8 @@ async function buildExcelPreview({ fileName, content, type }, db) {
     const requiredQuantity = quantityIndex >= 0 ? Math.max(1, Number(record.cells[quantityIndex] || 1)) : 1
     let skipReason = ''
     if (!code) skipReason = '编号为空'
-    if (!skipReason && /删除|返单/u.test(joined)) skipReason = '包含删除/返单字样'
+    const excludeKeyword = findExcludeKeyword(joined)
+    if (!skipReason && excludeKeyword) skipReason = `包含排除字样：${excludeKeyword}`
     if (!skipReason && existingCodes.has(code)) skipReason = '重复编号'
     if (!skipReason && seenCodes.has(code)) skipReason = '文件内重复编号'
     if (!skipReason) seenCodes.add(code)
