@@ -1076,6 +1076,11 @@ nav button.active {
   gap: 14px;
 }
 
+.manual-options {
+  display: grid;
+  gap: 12px;
+}
+
 .draft-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

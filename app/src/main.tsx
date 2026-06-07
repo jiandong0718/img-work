@@ -843,6 +843,7 @@ function ManualUpload({
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [uploadMessage, setUploadMessage] = useState('')
+  const [defaultType, setDefaultType] = useState<ImageType>('hand_bag')
   const [drafts, setDrafts] = useState<ManualDraft[]>([])
 
   function updateDraft(id: string, patch: Partial<ManualDraft>) {
@@ -893,7 +894,7 @@ function ManualUpload({
           fileName: file.fileName,
           code: '',
           name: file.fileName.replace(/\.[^.]+$/u, ''),
-          type: 'hand_bag' as ImageType,
+          type: defaultType,
           requiredQuantity: 1,
           imageUrl: file.imageUrl,
           duplicate: false,
@@ -943,10 +944,19 @@ function ManualUpload({
             {uploadMessage && <span className="upload-success">{uploadMessage}</span>}
             {uploadError && <span className="upload-error">{uploadError}</span>}
           </div>
-          <label>
-            归档日期
-            <input value={archiveDate} onChange={(event) => setArchiveDate(event.target.value)} />
-          </label>
+          <div className="manual-options">
+            <label>
+              归档日期
+              <input value={archiveDate} onChange={(event) => setArchiveDate(event.target.value)} />
+            </label>
+            <label>
+              新增图片默认类型
+              <select value={defaultType} onChange={(event) => setDefaultType(event.target.value as ImageType)}>
+                <option value="hand_bag">手提包</option>
+                <option value="shoulder_bag">单肩背包</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div className="draft-grid">
           {drafts.length === 0 ? (
