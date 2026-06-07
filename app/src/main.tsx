@@ -365,10 +365,10 @@ function LoginScreen({
   onLogin: (account: string, password: string) => Promise<void>
   onRegister: (account: string, displayName: string, password: string) => Promise<void>
 }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
-  const [account, setAccount] = useState('zhangsan')
+  const [mode, setMode] = useState<'login' | 'register'>('register')
+  const [account, setAccount] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [password, setPassword] = useState('123456')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -391,15 +391,9 @@ function LoginScreen({
   function switchMode(nextMode: 'login' | 'register') {
     setMode(nextMode)
     setError('')
-    if (nextMode === 'register') {
-      setAccount('')
-      setPassword('')
-      setDisplayName('')
-    } else {
-      setAccount('zhangsan')
-      setPassword('123456')
-      setDisplayName('')
-    }
+    setAccount('')
+    setPassword('')
+    setDisplayName('')
   }
 
   return (
