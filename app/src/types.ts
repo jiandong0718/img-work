@@ -39,12 +39,14 @@ export interface ImageItem {
   updatedAt: string
   sourceType: 'excel' | 'manual'
   batchId?: string
+  batchCode?: string
   batchName?: string
   deletedAt?: string
 }
 
 export interface ImportBatch {
   id: string
+  code?: string
   name: string
   sourceType: 'excel' | 'manual'
   archiveDate: string
@@ -107,6 +109,7 @@ export interface ExcelImportRow {
   requiredQuantity: number
   imageUrl: string
   skipReason: string
+  include?: boolean
 }
 
 export interface ExcelImportPreview {

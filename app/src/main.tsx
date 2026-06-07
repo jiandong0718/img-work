@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
-import type { ExcelImportPreview, ImageAttachment, ImageItem, ImageStatus, ImageType, ImportBatch, ManualDraft, OperationLog, OperationLogWithItem, Screen, User } from './types'
+import type { ExcelImportPreview, ExcelImportRow, ImageAttachment, ImageItem, ImageStatus, ImageType, ImportBatch, ManualDraft, OperationLog, OperationLogWithItem, Screen, User } from './types'
 import {
   batchUpdateImageStatus,
   confirmExcelImport,
@@ -69,6 +69,23 @@ function isActiveItem(item: ImageItem) {
 
 function isDeletedItem(item: ImageItem) {
   return Boolean(item.deletedAt) || item.status === 'deleted'
+}
+
+function canOverrideImportSkip(row: ExcelImportRow) {
+  return String(row.skipReason || '').startsWith('包含排除字样')
+}
+
+function shouldIncludePreviewRow(row: ExcelImportRow) {
+  if (!row.skipReason) return true
+  return canOverrideImportSkip(row) && row.include === true
+}
+
+function batchDisplayName(batch: ImportBatch) {
+  return batch.code || batch.name
+}
+
+function itemBatchDisplayName(item: ImageItem) {
+  return item.batchCode || item.batchName || '-'
 }
 
 const initialItems: ImageItem[] = [
@@ -673,6 +690,8 @@ function ExcelImport({
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const selectedImportCount = preview?.rows.filter(shouldIncludePreviewRow).length ?? 0
+  const skippedPreviewCount = preview ? preview.rows.length - selectedImportCount : 0
 
   function fileToText(file: File) {
     return new Promise<string>((resolve, reject) => {
@@ -710,7 +729,7 @@ function ExcelImport({
   }
 
   async function savePreview() {
-    if (!preview || preview.importableCount === 0) return
+    if (!preview || selectedImportCount === 0) return
     setSaving(true)
     setError('')
     try {
@@ -721,20 +740,34 @@ function ExcelImport({
     }
   }
 
+  function updatePreviewRow(index: number, patch: Partial<ExcelImportRow>) {
+    setPreview((current) => {
+      if (!current) return current
+      const rows = current.rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row))
+      return {
+        ...current,
+        rows,
+        importableCount: rows.filter(shouldIncludePreviewRow).length,
+        skippedCount: rows.filter((row) => !shouldIncludePreviewRow(row)).length,
+      }
+    })
+  }
+
   function downloadImportReport() {
     if (!preview) return
     const escapeCell = (value: string | number) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const rows = [
-      ['文件名', '归档日期', '默认类型', '总行数', '可入库', '跳过', '说明'],
-      [preview.fileName, archiveDate, imageTypeLabels[type], preview.totalRows, preview.importableCount, preview.skippedCount, preview.message],
+      ['文件名', '归档日期', '默认类型', '总行数', '确认入库', '确认跳过', '说明'],
+      [preview.fileName, archiveDate, imageTypeLabels[type], preview.totalRows, selectedImportCount, skippedPreviewCount, preview.message],
       [],
-      ['行号', '编号', '名称', '数量', '结果'],
+      ['行号', '编号', '名称', '数量', '识别结果', '入库选择'],
       ...preview.rows.map((row) => [
         row.rowNumber,
         row.code || '-',
         row.name || '-',
         row.requiredQuantity,
         row.skipReason || '可归档',
+        shouldIncludePreviewRow(row) ? '入库' : '跳过',
       ]),
     ]
     const csv = `\uFEFF${rows.map((row) => row.map(escapeCell).join(',')).join('\n')}`
@@ -755,8 +788,8 @@ function ExcelImport({
           <h2>Excel 导入预览</h2>
           <p>选择表格后先预览识别结果，确认无误再写入图片中心。</p>
         </div>
-        <button className="btn primary" onClick={savePreview} disabled={!preview || preview.importableCount === 0 || saving}>
-          {saving ? '入库中...' : `确认 ${preview?.importableCount ?? 0} 条入库`}
+        <button className="btn primary" onClick={savePreview} disabled={!preview || selectedImportCount === 0 || saving}>
+          {saving ? '入库中...' : `确认 ${selectedImportCount} 条入库`}
         </button>
       </div>
       <div className="form-grid">
@@ -787,8 +820,8 @@ function ExcelImport({
           <div className="import-summary">
             <strong>{preview.fileName}</strong>
             <span>共 {preview.totalRows} 行</span>
-            <span className="tag success">可入库 {preview.importableCount}</span>
-            <span className="tag warning">跳过 {preview.skippedCount}</span>
+            <span className="tag success">确认入库 {selectedImportCount}</span>
+            <span className="tag warning">确认跳过 {skippedPreviewCount}</span>
             <button className="btn" onClick={downloadImportReport}>
               下载导入报告
             </button>
@@ -805,11 +838,12 @@ function ExcelImport({
                     <th>名称</th>
                     <th>数量</th>
                     <th>结果</th>
+                    <th>入库选择</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.rows.map((row) => (
-                    <tr key={`${row.rowNumber}-${row.code}`}>
+                  {preview.rows.map((row, index) => (
+                    <tr key={`${row.rowNumber}-${row.code}-${index}`}>
                       <td>{row.rowNumber}</td>
                       <td>
                         <img className="preview-thumb" src={row.imageUrl} alt={row.name} />
@@ -819,6 +853,22 @@ function ExcelImport({
                       <td>{row.requiredQuantity}</td>
                       <td>
                         <span className={`tag ${row.skipReason ? 'warning' : 'success'}`}>{row.skipReason || '可归档'}</span>
+                      </td>
+                      <td>
+                        {canOverrideImportSkip(row) ? (
+                          <select
+                            className="inline-select"
+                            value={row.include === true ? 'include' : 'skip'}
+                            onChange={(event) => updatePreviewRow(index, { include: event.target.value === 'include' })}
+                          >
+                            <option value="skip">跳过</option>
+                            <option value="include">依旧保留</option>
+                          </select>
+                        ) : (
+                          <span className={`tag ${shouldIncludePreviewRow(row) ? 'success' : 'warning'}`}>
+                            {shouldIncludePreviewRow(row) ? '入库' : '不可入库'}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1263,7 +1313,7 @@ function ImageCenter({
         imageTypeLabels[item.type],
         statusLabels[item.status],
         item.archiveDate,
-        item.batchName || '-',
+        itemBatchDisplayName(item),
         item.requiredQuantity,
         item.producedQuantity,
         item.suiteCount,
@@ -1328,7 +1378,7 @@ function ImageCenter({
             <option value="all">全部批次</option>
             {batches.map((batch) => (
               <option key={batch.id} value={batch.id}>
-                {batch.name}（{batch.importedCount}）
+                {batchDisplayName(batch)}（{batch.importedCount}）
               </option>
             ))}
           </select>
@@ -1419,7 +1469,7 @@ function ImageCenter({
                     {itemDeleted && item.status !== 'deleted' && <span className="tag warning">已删除</span>}
                   </td>
                   <td>{item.archiveDate}</td>
-                  <td>{item.batchName || '-'}</td>
+                  <td>{itemBatchDisplayName(item)}</td>
                   <td>
                     {item.requiredQuantity} / {item.producedQuantity}
                   </td>

@@ -1070,6 +1070,18 @@ nav button.active {
   object-fit: cover;
 }
 
+.inline-select {
+  min-height: 32px;
+  min-width: 104px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
 .manual-layout {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);

@@ -134,10 +134,14 @@ async function readDb() {
     db.attachments = Array.isArray(db.attachments) ? db.attachments : []
     db.importBatches = Array.isArray(db.importBatches) ? db.importBatches : []
     db.sessions = Array.isArray(db.sessions) ? db.sessions : []
-    db.imageItems = (Array.isArray(db.imageItems) ? db.imageItems : []).map((item) => ({
-      ...item,
-      batchName: item.batchName || db.importBatches.find((batch) => batch.id === item.batchId)?.name,
-    }))
+    db.imageItems = (Array.isArray(db.imageItems) ? db.imageItems : []).map((item) => {
+      const batch = db.importBatches.find((candidate) => candidate.id === item.batchId)
+      return {
+        ...item,
+        batchCode: item.batchCode || batch?.code,
+        batchName: item.batchName || batch?.name,
+      }
+    })
     return db
   } catch (error) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -326,11 +330,21 @@ function addLog(db, imageItemId, action, operatorName, scope = 'image') {
   })
 }
 
-function createImportBatch({ sourceType, archiveDate, fileName, totalCount, importedCount, skippedCount, operatorName }) {
+function createBatchCode(db, sourceType, archiveDate) {
+  const datePart = String(archiveDate || '').replace(/\D/gu, '') || new Date().toISOString().slice(0, 10).replace(/\D/gu, '')
+  const sourcePart = sourceType === 'excel' ? 'EXCEL' : 'MANUAL'
+  const prefix = `${datePart}-${sourcePart}`
+  const sequence = (db.importBatches || []).filter((batch) => String(batch.code || '').startsWith(prefix)).length + 1
+  return `${prefix}-${String(sequence).padStart(3, '0')}`
+}
+
+function createImportBatch(db, { sourceType, archiveDate, fileName, totalCount, importedCount, skippedCount, operatorName }) {
   const sourceLabel = sourceType === 'excel' ? 'Excel 导入' : '手动上传'
+  const code = createBatchCode(db, sourceType, archiveDate)
   return {
     id: `batch-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    name: `${archiveDate} ${sourceLabel}`,
+    code,
+    name: `${code} ${sourceLabel}`,
     sourceType,
     archiveDate,
     fileName,
@@ -358,6 +372,7 @@ function createItemFromDraft(draft, archiveDate, operatorName, index, batch) {
     updatedAt: nowTime(),
     sourceType: 'manual',
     batchId: batch?.id,
+    batchCode: batch?.code,
     batchName: batch?.name,
   }
 }
@@ -378,8 +393,18 @@ function createItemFromExcelRow(row, archiveDate, type, operatorName, index, bat
     updatedAt: nowTime(),
     sourceType: 'excel',
     batchId: batch?.id,
+    batchCode: batch?.code,
     batchName: batch?.name,
   }
+}
+
+function canOverrideImportSkip(row) {
+  return String(row.skipReason || '').startsWith('包含排除字样')
+}
+
+function shouldIncludeImportRow(row) {
+  if (!row.skipReason) return true
+  return canOverrideImportSkip(row) && row.include === true
 }
 
 function splitDelimitedLine(line, delimiter) {
@@ -709,6 +734,7 @@ async function buildXlsxPreview({ fileName, content }, db) {
         requiredQuantity: Number.isFinite(quantity) ? quantity : 1,
         imageUrl: await saveXlsxMedia(xlsxFile, anchor.mediaEntry),
         skipReason,
+        include: !skipReason,
       })
     }
 
@@ -756,6 +782,7 @@ async function buildExcelPreview({ fileName, content, type }, db) {
         requiredQuantity: 1,
         imageUrl: sampleImages[0],
         skipReason: '缺少编号列',
+        include: false,
       })),
     }
   }
@@ -780,6 +807,7 @@ async function buildExcelPreview({ fileName, content, type }, db) {
       requiredQuantity: Number.isFinite(requiredQuantity) ? requiredQuantity : 1,
       imageUrl: sampleImages[index % sampleImages.length],
       skipReason,
+      include: !skipReason,
     }
   })
 
@@ -1068,7 +1096,7 @@ async function route(req, res) {
     })
 
     const batch = created.length > 0
-      ? createImportBatch({
+      ? createImportBatch(db, {
           sourceType: 'manual',
           archiveDate,
           totalCount: inputDrafts.length,
@@ -1080,8 +1108,9 @@ async function route(req, res) {
     if (batch) db.importBatches.unshift(batch)
     created.forEach((item) => {
       item.batchId = batch?.id
+      item.batchCode = batch?.code
       item.batchName = batch?.name
-      addLog(db, item.id, `手动上传入库（${batch?.name || '无批次'}）`, operatorName)
+      addLog(db, item.id, `手动上传入库（${batch?.code || batch?.name || '无批次'}）`, operatorName)
     })
 
     db.imageItems.unshift(...created)
@@ -1150,8 +1179,9 @@ async function route(req, res) {
 
     rows.forEach((row, index) => {
       const code = String(row.code || '').trim()
-      if (!code || row.skipReason || existingCodes.has(code)) {
-        skipped.push({ code, reason: row.skipReason || (!code ? '编号为空' : '重复编号') })
+      const include = shouldIncludeImportRow(row)
+      if (!include || !code || existingCodes.has(code)) {
+        skipped.push({ code, reason: !include ? row.skipReason || '用户选择跳过' : (!code ? '编号为空' : '重复编号') })
         return
       }
       const item = createItemFromExcelRow({ ...row, code }, archiveDate, type, operatorName, index)
@@ -1160,7 +1190,7 @@ async function route(req, res) {
     })
 
     const batch = created.length > 0
-      ? createImportBatch({
+      ? createImportBatch(db, {
           sourceType: 'excel',
           archiveDate,
           fileName: body.fileName,
@@ -1173,8 +1203,9 @@ async function route(req, res) {
     if (batch) db.importBatches.unshift(batch)
     created.forEach((item) => {
       item.batchId = batch?.id
+      item.batchCode = batch?.code
       item.batchName = batch?.name
-      addLog(db, item.id, `Excel 导入入库（${batch?.name || '无批次'}）`, operatorName)
+      addLog(db, item.id, `Excel 导入入库（${batch?.code || batch?.name || '无批次'}）`, operatorName)
     })
 
     db.imageItems.unshift(...created)
