@@ -41,6 +41,13 @@ export function login(account: string, password: string) {
   })
 }
 
+export function register(account: string, displayName: string, password: string) {
+  return request<{ user: User }>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ account, displayName, password }),
+  })
+}
+
 export function fetchCurrentUser() {
   return request<{ user: User }>('/auth/me')
 }

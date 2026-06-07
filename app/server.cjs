@@ -821,6 +821,44 @@ async function route(req, res) {
     return
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/auth/register') {
+    const body = await readJson(req)
+    const account = String(body.account || '').trim()
+    const password = String(body.password || '')
+    const displayName = String(body.displayName || '').trim()
+    if (!/^[a-zA-Z0-9_@.-]{3,32}$/.test(account)) {
+      sendJson(res, 400, { error: '账号需为 3-32 位字母、数字或 _ @ . -' })
+      return
+    }
+    if (displayName.length < 2 || displayName.length > 20) {
+      sendJson(res, 400, { error: '姓名需为 2-20 个字符' })
+      return
+    }
+    if (password.length < 6 || password.length > 32) {
+      sendJson(res, 400, { error: '密码需为 6-32 位' })
+      return
+    }
+    if (db.users.some((candidate) => candidate.account.toLowerCase() === account.toLowerCase())) {
+      sendJson(res, 409, { error: '账号已存在，请直接登录' })
+      return
+    }
+    const user = {
+      id: `u-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      account,
+      password,
+      displayName,
+      role: 'member',
+      status: 'active',
+      createdAt: nowDateTime(),
+    }
+    db.users.push(user)
+    const sessionId = createSession(db, user)
+    addLog(db, null, '注册并进入工作台', user.displayName, 'auth')
+    await writeDb(db)
+    sendJson(res, 201, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(sessionId) })
+    return
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/auth/me') {
     const user = findSessionUser(req, db)
     if (!user) {

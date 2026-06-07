@@ -17,6 +17,7 @@ import {
   login,
   logout,
   previewExcelImport,
+  register,
   updateImageItem,
   uploadImages,
 } from './api'
@@ -215,6 +216,11 @@ function App() {
           setUser(user)
           setError('')
         }}
+        onRegister={async (account, displayName, password) => {
+          const { user } = await register(account, displayName, password)
+          setUser(user)
+          setError('')
+        }}
       />
     )
   }
@@ -352,10 +358,49 @@ function App() {
   )
 }
 
-function LoginScreen({ onLogin }: { onLogin: (account: string, password: string) => Promise<void> }) {
+function LoginScreen({
+  onLogin,
+  onRegister,
+}: {
+  onLogin: (account: string, password: string) => Promise<void>
+  onRegister: (account: string, displayName: string, password: string) => Promise<void>
+}) {
+  const [mode, setMode] = useState<'login' | 'register'>('login')
   const [account, setAccount] = useState('zhangsan')
+  const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('123456')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function submitAuth() {
+    setSubmitting(true)
+    setError('')
+    try {
+      if (mode === 'login') {
+        await onLogin(account, password)
+      } else {
+        await onRegister(account, displayName, password)
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '操作失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function switchMode(nextMode: 'login' | 'register') {
+    setMode(nextMode)
+    setError('')
+    if (nextMode === 'register') {
+      setAccount('')
+      setPassword('')
+      setDisplayName('')
+    } else {
+      setAccount('zhangsan')
+      setPassword('123456')
+      setDisplayName('')
+    }
+  }
 
   return (
     <section className="login-page">
@@ -367,12 +412,26 @@ function LoginScreen({ onLogin }: { onLogin: (account: string, password: string)
             <span>登录后自动记录操作人</span>
           </div>
         </div>
-        <h1>登录工作台</h1>
-        <p>进入系统后可以导入 Excel、手动上传图片，并在图片中心维护状态和套图。</p>
+        <div className="auth-tabs">
+          <button className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')} type="button">
+            登录
+          </button>
+          <button className={mode === 'register' ? 'active' : ''} onClick={() => switchMode('register')} type="button">
+            注册
+          </button>
+        </div>
+        <h1>{mode === 'login' ? '登录工作台' : '注册工作台账号'}</h1>
+        <p>{mode === 'login' ? '进入系统后可以导入 Excel、手动上传图片，并在图片中心维护状态和套图。' : '创建成员账号后即可进入工作台，后续操作会自动记录到日志。'}</p>
         <label>
           账号
           <input value={account} onChange={(event) => setAccount(event.target.value)} />
         </label>
+        {mode === 'register' && (
+          <label>
+            姓名
+            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </label>
+        )}
         <label>
           密码
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
@@ -380,11 +439,10 @@ function LoginScreen({ onLogin }: { onLogin: (account: string, password: string)
         {error && <div className="login-error">{error}</div>}
         <button
           className="btn primary"
-          onClick={() => {
-            onLogin(account, password).catch((error) => setError(error.message))
-          }}
+          onClick={submitAuth}
+          disabled={submitting}
         >
-          登录
+          {submitting ? '提交中...' : mode === 'login' ? '登录' : '注册并进入'}
         </button>
       </div>
       <div className="login-hero" aria-hidden="true">
